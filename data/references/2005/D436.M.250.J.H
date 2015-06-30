@@ -1,9 +1,0 @@
-Causes of train accidents found by investigations fall into these categories.
-Faulty or damaged equipment include track, wheels, breaks, signaling equipment and cargo braces.
-Human factors include driver errors; not complying with light signals; signaling procedure errors; improper coupling of cars and engines; improper breaks connections; inaccurate cargo manifests; poor communication among train crews; poor communication between police and railway operators; improper switch operation; vehicle error at crossings; and improper maintenance.
-Substance abuse includes operating a train under the influence of drugs or alcohol.
-Management errors include failure to train drivers in difficult maneuvers and emergency procedures, and failure to systematically implement existing policies for identification, management and monitoring of hazards.
-Under-funding delayed implementation of safety measures, such as installation of "Automatic Train Protection" systems.
-Natural causes include floods and ice.
-Other causes include poor track design, such as conversion of double track to single track for bidirectional travel; vandalism; and pedestrians on tracks, including suicides.
-Formal recommendations for avoiding train accidents include replacing older trains with new ones; putting data recorders on all trains; improving driver emergency training, especially regarding 1) past accident scenarios, 2) light signal compliance, and 3) emergency breaking; improving accuracy of cargo weight listings; improving communications among crews members; installing "Automatic Train Protection" systems; redesigning buffer stops; supervising drivers' fitness for work; making it illegal for railway workers with safety responsibilities to be impaired by alcohol or drugs; allowing drug testing after incidents; and investigating problems of sudden light changes between outdoors and illuminated stations.
