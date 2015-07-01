@@ -33,7 +33,7 @@ class Collection:
         self.topic_title = -1   # keywords / topic title
         self.topic_descr = -1   # description of expected content
         self.docs = {}          # documents to summarize: {id: document-object}
-        self.references = {}    # human references: {id: raw-text}
+        self.references = {}    # human references: {id: reference-object}
 
     def readCollectionFromDir(self, year, code):
 
@@ -62,7 +62,7 @@ class Collection:
             with open(ref_path+"/"+filename, 'r') as f:
                 content = f.read()
             if encod[0].lower()==code[:-1]:
-                self.references[encod[4]]=content
+                self.references[encod[4]]=Reference(content,self)
 
 
 class Document:
@@ -90,7 +90,7 @@ class Document:
         return (count)
 
     def compute_svr_score(self, sentence):
-        return 0
+        return max([ref.basic_sent_sim() for ref in self.father.references.values()])
 
     def compute_ranksvm_score(self, sentence):
         return 0
@@ -103,8 +103,8 @@ class Reference:
         self.ref = raw_text.strip()
         self.ref_sent = collection.sent_detector.tokenize(self.ref)
 
-    def ref_sent_sim(self, sentence):
-        pass
+    def basic_sent_sim(self, sentence):
+        return 0
 
 
 
