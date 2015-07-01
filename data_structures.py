@@ -23,14 +23,6 @@ class Corpus:
     def loadCorpus(self, path):
         pass
 
-    # compute sentence features for redundancy and relevance
-    def processCorpusRelevance(self, feat_rel):
-        pass
-
-    # label feature vectors according to reference summaries
-    def generateTrainingRelevance(self, method):
-        pass
-
 
 class Collection:
 
