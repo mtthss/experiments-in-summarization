@@ -181,9 +181,6 @@ def forward(x_data, y_data, train=True):
 optimizer = optimizers.Adam()
 optimizer.setup(model.collect_parameters())
 
-# use momentum SGD first
-# is_sgd = False
-
 try:
     max_accuracy = 0
     max_accuracy_epoch = 0
@@ -191,17 +188,6 @@ try:
     print "\nstart training..."
     for epoch in xrange(0, n_epoch):
         print '\nepoch', epoch + 1
-
-        # dynamic switching of optimizers
-        # if epoch % 10 == 0:
-        #     if is_sgd:
-        #         optimizer = optimizers.AdaGrad()
-        #         optimizer.setup(model.collect_parameters())
-        #         is_sgd = False
-        #     else:
-        #         optimizer = optimizers.Adam()
-        #         optimizer.setup(model.collect_parameters())
-        #         is_sgd = True
 
         # Training
         perm = np.random.permutation(N)
