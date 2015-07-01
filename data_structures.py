@@ -3,7 +3,7 @@ import xml.etree.ElementTree as ET
 import nltk
 from collections import defaultdict
 from nltk.corpus import stopwords
-
+from nltk.util import ngrams
 
 
 __author__ = 'matteo'
@@ -92,27 +92,49 @@ class Document:
     def compute_features(self, sentence, count):
         return (count)
 
-    def compute_svr_score(self, sentence):
+    def compute_svr_score(self, sentence):  # see litRev file
         return max([ref.basic_sent_sim(sentence) for ref in self.father.references.values()])
 
-    def compute_ranksvm_score(self, sentence):
-        return 0
+    def compute_ranksvm_score(self, sentence):  # see litRev file
+        num = float(sum([ref.rougeN_sent_sim(sentence) for ref in self.father.references.values()]))
+        den = float(sum([r.tot_count_big for r in self.father.references.values()]))
+        return num/den
 
 
 class Reference:
 
-    def __init__(self, raw_text, collection, ngram_order=1):
+    def __init__(self, raw_text, collection):
 
-        self.ref = raw_text.strip()
-        self.ref_sent = collection.sent_detector.tokenize(self.ref)
-        self.ngram_dict = defaultdict(int)
+        self.ref = raw_text.strip()              # raw text of the human summary
+        self.unigram_dict = defaultdict(int)     # dictionary with n-gram counts
+        self.bigram_dict = defaultdict(int)
+        self.tot_count_uni = 0
+        self.tot_count_big = 0
 
-        cachedStopWords = stopwords.words("english")
-        for word in nltk.tokenize.word_tokenize(self.ref):
-            if word not in cachedStopWords: self.ngram_dict[word] += 1
+        self.cachedStopWords = stopwords.words("english")
+        self.tokens = nltk.tokenize.word_tokenize(self.ref)
 
-    def basic_sent_sim(self, sentence):
-        return sum([self.ngram_dict[word] for word in nltk.tokenize.word_tokenize(sentence)])
+        for word in self.tokens:
+            if word not in self.cachedStopWords:
+                self.unigram_dict[word] += 1
+                self.tot_count_uni += 1
+
+        for big in ngrams(self.tokens,2):
+            self.bigram_dict[big]+=1
+            self.tot_count_big += 1
+
+    def basic_sent_sim(self, sentence):    # numerator, see litRev for complete formula
+        l =[]
+        for word in nltk.tokenize.word_tokenize(sentence):
+            if word not in self.cachedStopWords: l.append(self.unigram_dict[word])
+        return sum(l)/float(len(l))
+
+    def rougeN_sent_sim(self, sentence):   # numerator, see litRev for complete formula
+        l = 0
+        tks = nltk.tokenize.word_tokenize(sentence)
+        for big in ngrams(tks,2):
+            l += self.bigram_dict[big]
+        return l
 
 
 if __name__ == '__main__':
