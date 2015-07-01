@@ -1,6 +1,9 @@
 import os
 import xml.etree.ElementTree as ET
 import nltk
+from collections import defaultdict
+from nltk.corpus import stopwords
+
 
 
 __author__ = 'matteo'
@@ -98,13 +101,18 @@ class Document:
 
 class Reference:
 
-    def __init__(self, raw_text, collection):
+    def __init__(self, raw_text, collection, ngram_order=1):
 
         self.ref = raw_text.strip()
         self.ref_sent = collection.sent_detector.tokenize(self.ref)
+        self.ngram_dict = defaultdict(int)
+
+        cachedStopWords = stopwords.words("english")
+        for word in nltk.tokenize.word_tokenize(self.ref):
+            if word not in cachedStopWords: self.ngram_dict[word] += 1
 
     def basic_sent_sim(self, sentence):
-        return 0
+        return sum([self.ngram_dict[word] for word in nltk.tokenize.word_tokenize(sentence)])
 
 
 if __name__ == '__main__':
