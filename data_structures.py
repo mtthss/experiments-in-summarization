@@ -19,11 +19,15 @@ class Corpus:
         self.collection_list = []
 
     # read corpus from a specified directory
-    def readCorpusFromDir(self, path):
+    def read(self, path):
         pass
 
     # from a pickled list of Collections
-    def loadCorpus(self, path):
+    def load(self, path):
+        pass
+
+    # export training data in matrix format
+    def export_training_data(self):
         pass
 
 
