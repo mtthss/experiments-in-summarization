@@ -8,7 +8,3 @@ def summarize(collection, score_f, algorithm):
 # extract lead sentences
 def lead(collection):
     pass
-
-# extract based on frequency only
-def supervised(collection, score_f):
-    pass
