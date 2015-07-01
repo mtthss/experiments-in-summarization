@@ -90,7 +90,7 @@ class Document:
         return (count)
 
     def compute_svr_score(self, sentence):
-        return max([ref.basic_sent_sim() for ref in self.father.references.values()])
+        return max([ref.basic_sent_sim(sentence) for ref in self.father.references.values()])
 
     def compute_ranksvm_score(self, sentence):
         return 0
@@ -107,9 +107,7 @@ class Reference:
         return 0
 
 
-
 if __name__ == '__main__':
-
 
     print "\ntesting tokenizer..."
     sent_detector = nltk.data.load('tokenizers/punkt/english.pickle')
@@ -123,5 +121,5 @@ if __name__ == '__main__':
     print "\ntesting document class..."
 
     d = Document("my_title", "my_doc", c)
-    print d.father.topic_title
     d.process_score_document()
+    print d.father.topic_title
