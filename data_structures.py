@@ -30,10 +30,10 @@ class Corpus:
 class Collection:
 
     def __init__(self):
-        self.topic_title = -1   # keywords / topic title
-        self.topic_descr = -1   # description of expected content
-        self.docs = {}          # documents to summarize: {id: (headline, text)}
-        self.references = {}    # human references: {id: text}
+        self.topic_title = -1       # keywords / topic title
+        self.topic_descr = -1       # description of expected content
+        self.raw_docs = {}          # documents to summarize: {id: document-object}
+        self.raw_references = {}    # human references: {id: raw-text}
 
     def readCollectionFromDir(self, year, code):
 
@@ -52,44 +52,31 @@ class Collection:
 
         # read documents
         for filename in os.listdir(doc_path):
-
-            tree_docs = ET.parse(doc_path+"/"+filename)
-            root = tree_docs.getroot()
+            root = ET.parse(doc_path+"/"+filename).getroot()
             id = root.find('DOCNO').text
-            hl = root.find('HEADLINE').text
-            txt = root.find('TEXT').text
-            self.docs[id] = (hl,txt)
+            self.raw_docs[id] = Document(root.find('HEADLINE').text, root.find('TEXT').text, self)
 
         # read references
         for filename in os.listdir(ref_path):
-
-            print filename
-
-    def loadCollection(self, path):
-        pass
+            encod = filename.split(".")
+            with open(ref_path+"/"+filename, 'r') as f:
+                content = f.read()
+            if encod[0].lower()==code[:-1]:
+                self.raw_references[encod[4]]=content
 
 
 class Document:
 
-    def __init__(self, input):
-        self.title = -1
-        self.raw_sent = {}
-        self.feat_rel = {}
-        self.fear_red = {}
+    def __init__(self, headline, raw_text, collection):
+        self.headline = headline    # headline of the document
+        self.raw_text = raw_text    # raw text of the document
+        self.father = collection    # reference to collection-object
+        self.sent = {}              # {sentence-position: (raw_text, features, rel-score)
 
+    def process_document(self):
 
-class Sentence:
+        pass
 
-    def __init__(self, input):
-        self.tok_list = []
-
-
-class Token:
-
-    def __init__(self, input):
-        self.word = ""
-        self.Ner = False
-        self.Centrality = -1
 
 
 if __name__ == '__main__':
