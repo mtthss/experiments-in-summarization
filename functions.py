@@ -4,14 +4,18 @@ __author__ = 'matteo'
 # return partially applied function
 def learn_relscore_function(X_rel, y, algorithm="svr"):
 
-    score = lambda feat, weights: feat*weights
+    score = lambda phi, w: sum(phi*w)
 
     if(algorithm=="svr"):
+        # TODO http://scikit-learn.org/stable/modules/generated/sklearn.svm.SVR.html
         # TODO partially apply weights learned from svr
+        pass
+    elif(algorithm=="svm-rank"):
+        # TODO http://fa.bianp.net/blog/2012/learning-to-rank-with-scikit-learn-the-pairwise-transform/
+        # TODO partially apply weights learned from svm-rank
         pass
     else:
-        # TODO partially apply weights learned from svr
-        pass
+        raise Exception('Invalid algorithm')
 
     return score
 

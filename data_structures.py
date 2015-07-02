@@ -2,6 +2,7 @@ import os
 import xml.etree.ElementTree as ET
 import nltk
 import time
+import numpy as np
 from collections import defaultdict
 from nltk.corpus import stopwords
 from nltk.util import ngrams
@@ -14,34 +15,41 @@ __author__ = 'matteo'
 
 # utility function for multiprocessing map
 def initialize_collection(params_bundle):
-    print params_bundle[1], params_bundle[2]
     c = Collection(params_bundle[0])
     c.readCollectionFromDir(params_bundle[1], params_bundle[2])
+    c.process_collection()
     return c
 
 
-# ensemble of collections
+# ensemble of collections to be used for training
 class Corpus:
 
     def __init__(self, parallel_jobs):
 
+        # initialize
         tok_path = 'tokenizers/punkt/english.pickle'
         col_path = './data/collections'
-
         sent_detector = nltk.data.load(tok_path)
         sent_detector.tokenize("  ".strip())
 
+        # collect collections paths
         path_list = []
         for year in os.listdir(col_path):
             for code in os.listdir(col_path+"/"+year):
                 if code!="duc2005_topics.sgml" and (code not in ["d408c", "d671g", "d442g"]):
                     path_list.append((sent_detector, year, code))
 
-        with closing(Pool(processes=parallel_jobs)) as pool:
-            pool.map(initialize_collection, path_list)
+        # read and process documents, use parallelism is possible
+        if parallel_jobs>1:
+            with closing(Pool(processes=parallel_jobs)) as pool:
+                collection_list = pool.map(initialize_collection, path_list)
+        else:
+            collection_list = [initialize_collection(x) for x in path_list]
 
-        # pass tokenizer to string
-        self.collection_list = []
+        # store result in a dictionary
+        self.collections = {}
+        for c in collection_list:
+            self.collections[c.code] = c
 
     # read corpus from a specified directory
     def read(self, path):
@@ -53,7 +61,15 @@ class Corpus:
 
     # export training data in matrix format
     def export_training_data(self):
-        pass
+
+        x_list = []
+        y_list = []
+        for c in self.collections.values():
+            for d in c.docs.values():
+                for s in d.sent.values():
+                    x_list.append(s[1])
+                    y_list.append(s[2])
+        return (np.ndarray(x_list),np.ndarray(y_list))
 
 
 # set of documents related to the same topic
@@ -63,12 +79,16 @@ class Collection:
 
         self.sent_detector = tokenizer if tokenizer!=None else nltk.data.load('tokenizers/punkt/english.pickle')
 
+        self.code = -1          # id of the collection
         self.topic_title = -1   # keywords / topic title
         self.topic_descr = -1   # description of expected content
         self.docs = {}          # documents to summarize: {id: document-object}
         self.references = {}    # human references: {id: reference-object}
 
+    # read specified collection, including docs, topic and references
     def readCollectionFromDir(self, year, code):
+
+        self.code = code
 
         # build paths
         doc_path = "./data/collections/"+str(year)+"/"+code
@@ -96,6 +116,16 @@ class Collection:
                 content = f.read()
             if encod[0].lower()==code[:-1]:
                 self.references[encod[4]]=Reference(content,self)
+
+    # process document, compute features, and if requested label data
+    def process_collection(self, score=True):
+
+        if score:
+            for d in self.docs.values():
+                d.process_score_document()
+        else:
+            for d in self.docs.values():
+                d.process_document()
 
 
 # document class, including processing methods
@@ -159,6 +189,8 @@ class Reference:
         l =[]
         for word in nltk.tokenize.word_tokenize(sentence):
             if word not in self.cachedStopWords: l.append(self.unigram_dict[word])
+        if len(l)==0:
+            return 0
         return sum(l)/float(len(l))
 
     def rougeN_sent_sim(self, sentence):   # numerator, see litRev for complete formula
@@ -189,5 +221,9 @@ if __name__ == '__main__':
 
     print "\ntesting corpus class..."
     start_time = time.time()
-    cp = Corpus(6)
-    print "read in: "+str(time.time() - start_time)
+    cp = Corpus(8) # optimal 6
+    print "read and processed 47 collections in: "+str(time.time() - start_time)
+
+    print "\ntesting exporting as matrix"
+    (X,y) = cp.export_training_data()
+    print X.shape, y.shape
