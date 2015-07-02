@@ -1,19 +1,44 @@
 import os
 import xml.etree.ElementTree as ET
 import nltk
+import time
 from collections import defaultdict
 from nltk.corpus import stopwords
 from nltk.util import ngrams
+from multiprocessing.pool import Pool
+from contextlib import closing
 
 
 __author__ = 'matteo'
 
 
+# utility function for multiprocessing map
+def initialize_collection(params_bundle):
+    print params_bundle[1], params_bundle[2]
+    c = Collection(params_bundle[0])
+    c.readCollectionFromDir(params_bundle[1], params_bundle[2])
+    return c
+
+
+# ensemble of collections
 class Corpus:
 
-    def __init__(self, input):
-        sent_detector = nltk.data.load('tokenizers/punkt/english.pickle')
+    def __init__(self, parallel_jobs):
+
+        tok_path = 'tokenizers/punkt/english.pickle'
+        col_path = './data/collections'
+
+        sent_detector = nltk.data.load(tok_path)
         sent_detector.tokenize("  ".strip())
+
+        path_list = []
+        for year in os.listdir(col_path):
+            for code in os.listdir(col_path+"/"+year):
+                if code!="duc2005_topics.sgml" and (code not in ["d408c", "d671g", "d442g"]):
+                    path_list.append((sent_detector, year, code))
+
+        with closing(Pool(processes=parallel_jobs)) as pool:
+            pool.map(initialize_collection, path_list)
 
         # pass tokenizer to string
         self.collection_list = []
@@ -31,6 +56,7 @@ class Corpus:
         pass
 
 
+# set of documents related to the same topic
 class Collection:
 
     def __init__(self, tokenizer=None):
@@ -72,6 +98,7 @@ class Collection:
                 self.references[encod[4]]=Reference(content,self)
 
 
+# document class, including processing methods
 class Document:
 
     def __init__(self, headline, raw_text, collection=None):
@@ -105,6 +132,7 @@ class Document:
         return num/den
 
 
+# class for human reference, including methods for comparing
 class Reference:
 
     def __init__(self, raw_text, collection):
@@ -141,6 +169,7 @@ class Reference:
         return l
 
 
+# main
 if __name__ == '__main__':
 
     print "\ntesting tokenizer..."
@@ -157,3 +186,8 @@ if __name__ == '__main__':
     d = Document("my_title", "my_doc", c)
     d.process_score_document()
     print d.father.topic_title
+
+    print "\ntesting corpus class..."
+    start_time = time.time()
+    cp = Corpus(6)
+    print "read in: "+str(time.time() - start_time)
