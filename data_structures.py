@@ -1,13 +1,15 @@
 import os
-import xml.etree.ElementTree as ET
+import pdb
 import nltk
 import time
 import numpy as np
-from collections import defaultdict
-from nltk.corpus import stopwords
+import xml.etree.ElementTree as ET
+
 from nltk.util import ngrams
-from multiprocessing.pool import Pool
 from contextlib import closing
+from nltk.corpus import stopwords
+from collections import defaultdict
+from multiprocessing.pool import Pool
 
 
 __author__ = 'matteo'
@@ -30,7 +32,6 @@ class Corpus:
         tok_path = 'tokenizers/punkt/english.pickle'
         col_path = './data/collections'
         sent_detector = nltk.data.load(tok_path)
-        sent_detector.tokenize("  ".strip())
 
         # collect collections paths
         path_list = []
@@ -64,12 +65,16 @@ class Corpus:
 
         x_list = []
         y_list = []
+
         for c in self.collections.values():
             for d in c.docs.values():
                 for s in d.sent.values():
                     x_list.append(s[1])
                     y_list.append(s[2])
-        return (np.ndarray(x_list),np.ndarray(y_list))
+
+        X = np.asarray(x_list)
+        y = np.asarray(y_list)
+        return (X,y)
 
 
 # set of documents related to the same topic
@@ -107,7 +112,14 @@ class Collection:
         for filename in os.listdir(doc_path):
             root = ET.parse(doc_path+"/"+filename).getroot()
             id = root.find('DOCNO').text
-            self.docs[id] = Document(root.find('HEADLINE').text, root.find('TEXT').text, self)
+
+            flat_text = root.find('TEXT').text
+            if len(flat_text)>10:
+                self.docs[id] = Document(root.find('HEADLINE').text, root.find('TEXT').text, id, self)
+            else:
+                ps = root.findall('./TEXT//P')
+                concat = "".join([par.text for par in ps])
+                self.docs[id] = Document(root.find('HEADLINE').text, concat.replace('\n', ' ').replace('  ', ' '), id, self)
 
         # read references
         for filename in os.listdir(ref_path):
@@ -131,24 +143,27 @@ class Collection:
 # document class, including processing methods
 class Document:
 
-    def __init__(self, headline, raw_text, collection=None):
+    def __init__(self, headline, raw_text, my_id, collection=None):
         if collection==None: collection = Collection()
         self.headline = headline                        # headline of the document
         self.raw_text = raw_text.replace('\n', ' ')     # raw text of the document
         self.father = collection                        # reference to collection-object
+        self.id = my_id
         self.sent = {}                                  # {sentence-position: (raw_text, features, rel-score)
 
     def process_score_document(self):
         tokenized = self.father.sent_detector.tokenize(self.raw_text)
-        count = 0
+        count = 1
         for s in tokenized:
             self.sent[count] = (s, self.compute_features(s, count), self.compute_svr_score(s), self.compute_ranksvm_score(s))
+            count+=1
 
     def process_document(self):
         tokenized = self.father.sent_detector.tokenize(self.raw_text)
-        count = 0
+        count = 1
         for s in tokenized:
-            self.sent[count] = (s, self.compute_features(s))
+            self.sent[count] = (s, self.compute_features(s, count))
+            count+=1
 
     def compute_features(self, sentence, count):
         return (count)
@@ -204,26 +219,13 @@ class Reference:
 # main
 if __name__ == '__main__':
 
-    print "\ntesting tokenizer..."
-    sent_detector = nltk.data.load('tokenizers/punkt/english.pickle')
-
-    print "\ntesting collection class..."
-
-    c = Collection(sent_detector)
-    c.readCollectionFromDir(2005,"d301i")
-    print c.topic_title
-
-    print "\ntesting document class..."
-
-    d = Document("my_title", "my_doc", c)
-    d.process_score_document()
-    print d.father.topic_title
-
     print "\ntesting corpus class..."
     start_time = time.time()
     cp = Corpus(8) # optimal 6
-    print "read and processed 47 collections in: "+str(time.time() - start_time)
+    print "read and processed 50 collections (approx 1600 articles) in: "+str(time.time() - start_time)
 
     print "\ntesting exporting as matrix"
     (X,y) = cp.export_training_data()
     print X.shape, y.shape
+
+    pdb.set_trace()
