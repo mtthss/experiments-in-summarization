@@ -6,6 +6,10 @@ def learn_relscore_function(X_rel, y, algorithm="svr"):
 
     score = lambda phi, w: sum(phi*w)
 
+    # TODO python interfaces:
+    # https://bitbucket.org/wcauchois/pysvmlight
+    # https://pypi.python.org/pypi/svmlight
+
     if(algorithm=="svr"):
         # TODO http://scikit-learn.org/stable/modules/generated/sklearn.svm.SVR.html
         # TODO partially apply weights learned from svr

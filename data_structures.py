@@ -61,7 +61,7 @@ class Corpus:
         pass
 
     # export training data in matrix format
-    def export_training_data(self):
+    def export_training_data_regression(self):
 
         x_list = []
         y_list = []
@@ -152,11 +152,19 @@ class Document:
         self.sent = {}                                  # {sentence-position: (raw_text, features, rel-score)
 
     def process_score_document(self):
-        tokenized = self.father.sent_detector.tokenize(self.raw_text)
+
         count = 1
+        self.cachedStopWords = stopwords.words("english")
+        tokenized = self.father.sent_detector.tokenize(self.raw_text)
+
         for s in tokenized:
-            self.sent[count] = (s, self.compute_features(s, count), self.compute_svr_score(s), self.compute_ranksvm_score(s))
-            count+=1
+            tok_sent = []
+            for word in nltk.tokenize.word_tokenize(s):
+                if word not in self.cachedStopWords:
+                    tok_sent.append(word)
+            # TODO pass already tokenized sentence also to the other two functions
+            self.sent[count] = (s, self.compute_features(tok_sent, count), self.compute_svr_score(s), self.compute_ranksvm_score(s))
+            count += 1
 
     def process_document(self):
         tokenized = self.father.sent_detector.tokenize(self.raw_text)
@@ -165,8 +173,18 @@ class Document:
             self.sent[count] = (s, self.compute_features(s, count))
             count+=1
 
-    def compute_features(self, sentence, count):
-        return (count)
+    def compute_features(self, tok_sent, count):
+        P = 1.0/count
+        F5 = 1 if count <=5 else 0
+        LEN = len(tok_sent)
+        return (P, F5, LEN)
+
+    def compute_tfidf(self, sentence, count):
+        hl = self.headline
+        query_ttl = self.father.topic_title
+        query_desc = self.father.topic_descr
+        # TODO compute tf-idf of sentence and query and return cosine similarity as feature
+        return 0
 
     def compute_svr_score(self, sentence):  # see litRev file
         return max([ref.basic_sent_sim(sentence) for ref in self.father.references.values()])
@@ -225,7 +243,10 @@ if __name__ == '__main__':
     print "read and processed 50 collections (approx 1600 articles) in: "+str(time.time() - start_time)
 
     print "\ntesting exporting as matrix"
-    (X,y) = cp.export_training_data()
+    (X,y) = cp.export_training_data_regression()
     print X.shape, y.shape
 
     pdb.set_trace()
+
+    if False:
+        pdb.set_trace()
