@@ -26,7 +26,7 @@ def initialize_collection(params_bundle):
 # ensemble of collections to be used for training
 class Corpus:
 
-    def __init__(self, parallel_jobs):
+    def __init__(self, parallel_jobs, test_mode=False):
 
         # initialize
         tok_path = 'tokenizers/punkt/english.pickle'
@@ -34,11 +34,15 @@ class Corpus:
         sent_detector = nltk.data.load(tok_path)
 
         # collect collections paths
+        count = 0
         path_list = []
         for year in os.listdir(col_path):
             for code in os.listdir(col_path+"/"+year):
                 if code!="duc2005_topics.sgml" and (code not in ["d408c", "d671g", "d442g"]):
                     path_list.append((sent_detector, year, code))
+                    if test_mode and count>10:
+                        break
+                    count += 1
 
         # read and process documents, use parallelism is possible
         if parallel_jobs>1:
@@ -245,8 +249,6 @@ if __name__ == '__main__':
     print "\ntesting exporting as matrix"
     (X,y) = cp.export_training_data_regression()
     print X.shape, y.shape
-
-    pdb.set_trace()
 
     if False:
         pdb.set_trace()
