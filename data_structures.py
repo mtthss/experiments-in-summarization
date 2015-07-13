@@ -130,7 +130,7 @@ class Collection:
 
             flat_text = root.find('TEXT').text
             if len(flat_text)>10:
-                self.docs[id] = Document(root.find('HEADLINE').text, root.find('TEXT').text, id, self)
+                self.docs[id] = Document(root.find('HEADLINE').text, root.find('TEXT').text.replace('\n', ' ').replace('  ', ' '), id, self)
             else:
                 ps = root.findall('./TEXT//P')
                 concat = "".join([par.text for par in ps])
@@ -143,6 +143,15 @@ class Collection:
                 content = f.read()
             if encod[0].lower()==code[:-1]:
                 self.references[encod[4]]=Reference(content,self)
+
+    def read_test_collections(self, feed):
+
+        tst_path = "./data/feeds/"+feed
+
+        for filename in os.listdir(tst_path):
+            root = ET.parse(tst_path+"/"+filename).getroot()
+            id = root.find('DOCNO').text
+            self.docs[id] = Document(root.find('HEADLINE').text, root.find('TEXT').text, id, self)
 
     # process document, compute features, and if requested label data
     def process_collection(self, score=True):
@@ -182,11 +191,19 @@ class Document:
             count += 1
 
     def process_document(self):
-        tokenized = self.father.sent_detector.tokenize(self.raw_text)
         count = 1
+        self.cachedStopWords = stopwords.words("english")
+        tokenized = self.father.sent_detector.tokenize(self.raw_text)
+
         for s in tokenized:
-            self.sent[count] = (s, self.compute_features(s, count))
-            count+=1
+            tok_sent = []
+            for word in nltk.tokenize.word_tokenize(s):
+                if word not in self.cachedStopWords:
+                    tok_sent.append(word)
+
+            # TODO pass already tokenized sentence also to the other two functions
+            self.sent[count] = (s, self.compute_features(s, tok_sent, count), 0, 0)
+            count += 1
 
     def compute_features(self, s, tok_sent, count):
         P = 1.0/count

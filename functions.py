@@ -16,7 +16,7 @@ def learn_relscore_function(X_rel, y, algorithm="svr"):
     # https://pypi.python.org/pypi/svmlight
 
     if(algorithm=="svr"):
-        svr_lin = SVR(kernel='linear', C=1e3)
+        svr_lin = SVR(kernel='linear', C=100000000)
         svr_lin.fit(X_rel, y)
         weights = svr_lin.coef_
         print svr_lin.coef_
