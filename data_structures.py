@@ -5,6 +5,9 @@ import time
 import numpy as np
 import xml.etree.ElementTree as ET
 
+import os
+import kenlm
+
 from nltk.util import ngrams
 from contextlib import closing
 from nltk.corpus import stopwords
@@ -17,8 +20,8 @@ __author__ = 'matteo'
 
 # utility function for multiprocessing map
 def initialize_collection(params_bundle):
-    c = Collection(params_bundle[0])
-    c.readCollectionFromDir(params_bundle[1], params_bundle[2])
+    c = Collection(params_bundle[0], params_bundle[1])
+    c.readCollectionFromDir(params_bundle[2], params_bundle[3])
     c.process_collection()
     return c
 
@@ -31,7 +34,14 @@ class Corpus:
         # initialize
         tok_path = 'tokenizers/punkt/english.pickle'
         col_path = './data/collections'
+        LM_path = './kenlm-master/lm/test.arpa'
+
+        # intialize models
         sent_detector = nltk.data.load(tok_path)
+        # TODO to train bigger more accurate model https://kheafield.com/code/kenlm/estimation/
+        # TODO https://github.com/kpu/kenlm
+        # TODO http://victor.chahuneau.fr/notes/2012/07/03/kenlm.html
+        self.model = kenlm.LanguageModel(LM_path)
 
         # collect collections paths
         count = 0
@@ -39,7 +49,7 @@ class Corpus:
         for year in os.listdir(col_path):
             for code in os.listdir(col_path+"/"+year):
                 if code!="duc2005_topics.sgml" and (code not in ["d408c", "d671g", "d442g"]):
-                    path_list.append((sent_detector, year, code))
+                    path_list.append((sent_detector, self.model, year, code))
                     if test_mode and count>10:
                         break
                     count += 1
@@ -84,9 +94,10 @@ class Corpus:
 # set of documents related to the same topic
 class Collection:
 
-    def __init__(self, tokenizer=None):
+    def __init__(self, tokenizer=None, model=None):
 
         self.sent_detector = tokenizer if tokenizer!=None else nltk.data.load('tokenizers/punkt/english.pickle')
+        self.model = model if model!=None else kenlm.LanguageModel('./kenlm-master/lm/test.arpa')
 
         self.code = -1          # id of the collection
         self.topic_title = -1   # keywords / topic title
@@ -167,7 +178,7 @@ class Document:
                 if word not in self.cachedStopWords:
                     tok_sent.append(word)
             # TODO pass already tokenized sentence also to the other two functions
-            self.sent[count] = (s, self.compute_features(tok_sent, count), self.compute_svr_score(s), self.compute_ranksvm_score(s))
+            self.sent[count] = (s, self.compute_features(s, tok_sent, count), self.compute_svr_score(s), self.compute_ranksvm_score(s))
             count += 1
 
     def process_document(self):
@@ -177,11 +188,12 @@ class Document:
             self.sent[count] = (s, self.compute_features(s, count))
             count+=1
 
-    def compute_features(self, tok_sent, count):
+    def compute_features(self, s, tok_sent, count):
         P = 1.0/count
         F5 = 1 if count <=5 else 0
         LEN = len(tok_sent)
-        return (P, F5, LEN)
+        LM = self.father.model.score(s)
+        return (P, F5, LEN, LM)
 
     def compute_tfidf(self, sentence, count):
         hl = self.headline

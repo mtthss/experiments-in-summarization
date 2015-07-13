@@ -1,5 +1,8 @@
 from functools import partial
+from sklearn import linear_model
+from sklearn.svm import SVR
 import numpy as np
+import pdb
 
 
 __author__ = 'matteo'
@@ -13,20 +16,23 @@ def learn_relscore_function(X_rel, y, algorithm="svr"):
     # https://pypi.python.org/pypi/svmlight
 
     if(algorithm=="svr"):
-        # TODO http://scikit-learn.org/stable/modules/generated/sklearn.svm.SVR.html
-        # TODO partially apply weights learned from svr
-        pass
+        svr_lin = SVR(kernel='linear', C=1e3)
+        svr_lin.fit(X_rel, y)
+        weights = svr_lin.coef_
+        print svr_lin.coef_
+        print svr_lin.intercept_
     elif(algorithm=="svm-rank"):
         # TODO http://fa.bianp.net/blog/2012/learning-to-rank-with-scikit-learn-the-pairwise-transform/
         # TODO partially apply weights learned from svm-rank
         pass
     elif(algorithm=="linear-reg"):
-        # TODO simple implementation with scikit learn
-        pass
+        clf = linear_model.LinearRegression(fit_intercept=False)
+        clf.fit (X_rel, y)
+        weights = clf.coef_
     elif(algorithm=="lead"):
-        weights = np.asarray([1, 0, 0])
+        weights = np.asarray([1, 0, 0, 0]) # first intercept, then others
     elif(algorithm=="test"):
-        weights = np.asarray([0.55, 0.35, 0.005])
+        weights = np.asarray([0.6, 0.35, 0.025, 0.025]) # first intercept, then others
     else:
         raise Exception('Learn score function: Invalid algorithm')
 
@@ -40,5 +46,3 @@ def reorder(sent_list, algorithm):
 # process cross sentence references
 def preprocess_crossreferences(corpus):
     pass
-
-

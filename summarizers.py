@@ -2,6 +2,7 @@ from functions import learn_relscore_function
 from data_structures import Corpus, Collection
 from heapq import heappush, nlargest
 import numpy as np
+import pdb
 
 
 __author__ = 'matteo'
@@ -42,21 +43,31 @@ if __name__ == '__main__':
 
     print "testing summarizer..."
 
-    cp = Corpus(8, test_mode=True) # optimal 6
+    cp = Corpus(1, test_mode=True) # optimal 6
     (X, y) = cp.export_training_data_regression()
 
     print "\n\ntesting lead..."
 
     w = learn_relscore_function(X, y, "lead")
-    summ = summarize(cp.collections['d301i'], w, 'greedy',5)
+    summ = summarize(cp.collections['d301i'], w, 'greedy',4)
 
     for s in summ:
         print s
 
-    print "\n\ntesting 2 features..."
+    print "\n\nlinear regression..."
 
-    w = learn_relscore_function(X, y, "test")
-    summ = summarize(cp.collections['d301i'], w, 'greedy',5)
+    w = learn_relscore_function(X, y, "linear-reg")
+    print w
+    summ = summarize(cp.collections['d301i'], w, 'greedy',4)
+
+    for s in summ:
+        print s
+
+    print "\n\nsupport vector regression..."
+
+    w = learn_relscore_function(X, y, "svr")
+    print w
+    summ = summarize(cp.collections['d301i'], w, 'greedy',4)
 
     for s in summ:
         print s
