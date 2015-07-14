@@ -5,14 +5,17 @@ import time
 import numpy as np
 import xml.etree.ElementTree as ET
 
+import re
 import os
 import kenlm
 
+from scipy import spatial
 from nltk.util import ngrams
 from contextlib import closing
 from nltk.corpus import stopwords
 from collections import defaultdict
 from multiprocessing.pool import Pool
+from sklearn.feature_extraction.text import CountVectorizer
 
 
 __author__ = 'matteo'
@@ -25,6 +28,11 @@ def initialize_collection(params_bundle):
     c.process_collection()
     return c
 
+def clean(txt, stop=False, stem=False):
+    txt = re.sub('"|\'|-|\||\n|<|>|\\\\+', ' ', txt)
+    txt = re.sub('\s+', ' ', txt)
+    txt = txt.lower()
+    return txt.strip()
 
 # ensemble of collections to be used for training
 class Corpus:
@@ -84,7 +92,7 @@ class Corpus:
             for d in c.docs.values():
                 for s in d.sent.values():
                     x_list.append(s[1])
-                    y_list.append(s[2])
+                    y_list.append(s[2]) #2
 
         X = np.asarray(x_list)
         y = np.asarray(y_list)
@@ -98,19 +106,22 @@ class Collection:
 
         self.sent_detector = tokenizer if tokenizer!=None else nltk.data.load('tokenizers/punkt/english.pickle')
         self.model = model if model!=None else kenlm.LanguageModel('./kenlm-master/lm/test.arpa')
+        self.cachedStopWords = stopwords.words("english")   # loaded stopwords list
 
         self.code = -1          # id of the collection
         self.topic_title = -1   # keywords / topic title
         self.topic_descr = -1   # description of expected content
+
+        self.cv = None          # count vectorizer on whole collection
+        self.doc_BoW = None     # doc representation as bag of words
         self.docs = {}          # documents to summarize: {id: document-object}
         self.references = {}    # human references: {id: reference-object}
 
     # read specified collection, including docs, topic and references
     def readCollectionFromDir(self, year, code):
 
+        #initialize
         self.code = code
-
-        # build paths
         doc_path = "./data/collections/"+str(year)+"/"+code
         top_path = "./data/collections/"+str(year)+"/duc2005_topics.sgml"
         ref_path = "./data/references/"+str(year)
@@ -124,17 +135,29 @@ class Collection:
                 self.topic_descr = tp.find("./narr").text.strip()
 
         # read documents
+        texts = []
+        hls = []
         for filename in os.listdir(doc_path):
             root = ET.parse(doc_path+"/"+filename).getroot()
             id = root.find('DOCNO').text
 
-            flat_text = root.find('TEXT').text
-            if len(flat_text)>10:
-                self.docs[id] = Document(root.find('HEADLINE').text, root.find('TEXT').text.replace('\n', ' ').replace('  ', ' '), id, self)
-            else:
+            txt = root.find('TEXT').text
+            if len(txt)<10:
                 ps = root.findall('./TEXT//P')
-                concat = "".join([par.text for par in ps])
-                self.docs[id] = Document(root.find('HEADLINE').text, concat.replace('\n', ' ').replace('  ', ' '), id, self)
+                txt = "".join([par.text for par in ps])
+            texts.append(txt)
+
+            hl = root.find('HEADLINE').text
+            if len(hl)<6:
+                ps = root.findall('./HEADLINE//P')
+                hl = "".join([par.text for par in ps])
+            hls.append(hl)
+
+            self.docs[id] = Document(hl, txt, id, self)
+
+        # process with count vectorizer
+        self.cv = CountVectorizer(analyzer="word",stop_words=self.cachedStopWords,preprocessor=clean,max_features=5000,lowercase=True)
+        self.doc_BoW = self.cv.fit_transform(texts+hls)
 
         # read references
         for filename in os.listdir(ref_path):
@@ -142,8 +165,9 @@ class Collection:
             with open(ref_path+"/"+filename, 'r') as f:
                 content = f.read()
             if encod[0].lower()==code[:-1]:
-                self.references[encod[4]]=Reference(content,self)
+                self.references[encod[4]] = Reference(content,self)
 
+    # read test collection for which you want to generate summaries
     def read_test_collections(self, feed):
 
         tst_path = "./data/feeds/"+feed
@@ -155,73 +179,63 @@ class Collection:
 
     # process document, compute features, and if requested label data
     def process_collection(self, score=True):
-
-        if score:
             for d in self.docs.values():
-                d.process_score_document()
-        else:
-            for d in self.docs.values():
-                d.process_document()
+                d.process_document(score)
 
 
 # document class, including processing methods
 class Document:
 
     def __init__(self, headline, raw_text, my_id, collection=None):
-        if collection==None: collection = Collection()
-        self.headline = headline                        # headline of the document
-        self.raw_text = raw_text.replace('\n', ' ')     # raw text of the document
-        self.father = collection                        # reference to collection-object
-        self.id = my_id
-        self.sent = {}                                  # {sentence-position: (raw_text, features, rel-score)
 
-    def process_score_document(self):
+        if collection==None: collection = Collection()      # ensure a collection object exists
+        self.father = collection                            # reference to collection-object
 
+        self.headline = headline                            # headline of the document
+        self.raw_text = raw_text.replace('\n', ' ')         # raw text of the document
+        self.id = my_id                                     # doc number
+
+        self.hl_vsv_1 = None                                # vector space representation uni-grams
+        self.sent = {}                                      # {sentence-position: (raw_text, features, rel-score)
+
+    # compute features and if requested score sentences wrt references
+    def process_document(self, score=True):
+
+        # compute headline features
+        self.hl_vsv_1 = self.father.cv.transform([self.headline])
+
+        # compute sentence features
         count = 1
-        self.cachedStopWords = stopwords.words("english")
-        tokenized = self.father.sent_detector.tokenize(self.raw_text)
+        for s in self.father.sent_detector.tokenize(self.raw_text):
 
-        for s in tokenized:
-            tok_sent = []
-            for word in nltk.tokenize.word_tokenize(s):
-                if word not in self.cachedStopWords:
-                    tok_sent.append(word)
-            # TODO pass already tokenized sentence also to the other two functions
-            self.sent[count] = (s, self.compute_features(s, tok_sent, count), self.compute_svr_score(s), self.compute_ranksvm_score(s))
+            if len(clean(s))<15:
+                continue
+
+            s1 = self.compute_svr_score(s) if score else 0
+            s2 = self.compute_ranksvm_score(s) if score else 0
+            self.sent[count] = (s, self.compute_features(s, count), s1, s2)
             count += 1
 
-    def process_document(self):
-        count = 1
-        self.cachedStopWords = stopwords.words("english")
-        tokenized = self.father.sent_detector.tokenize(self.raw_text)
+    # compute sentence features (P, F5, LEN, LM, VS1)
+    def compute_features(self, s, count):
 
-        for s in tokenized:
-            tok_sent = []
-            for word in nltk.tokenize.word_tokenize(s):
-                if word not in self.cachedStopWords:
-                    tok_sent.append(word)
+        # TODO http://scikit-learn.org/stable/modules/generated/sklearn.feature_extraction.text.TfidfTransformer.html
 
-            # TODO pass already tokenized sentence also to the other two functions
-            self.sent[count] = (s, self.compute_features(s, tok_sent, count), 0, 0)
-            count += 1
+        tok_sent = [x for x in nltk.tokenize.word_tokenize(s) if x not in self.father.cachedStopWords]
 
-    def compute_features(self, s, tok_sent, count):
         P = 1.0/count
         F5 = 1 if count <=5 else 0
         LEN = len(tok_sent)
         LM = self.father.model.score(s)
-        return (P, F5, LEN, LM)
+        VS1 = 1 - spatial.distance.cosine(self.hl_vsv_1.toarray(), self.father.cv.transform([s]).toarray())
 
-    def compute_tfidf(self, sentence, count):
-        hl = self.headline
-        query_ttl = self.father.topic_title
-        query_desc = self.father.topic_descr
-        # TODO compute tf-idf of sentence and query and return cosine similarity as feature
-        return 0
+        return (P, F5, LEN, LM, VS1)
 
+    # score sentence wrt reference summaries (svr)
     def compute_svr_score(self, sentence):  # see litRev file
         return max([ref.basic_sent_sim(sentence) for ref in self.father.references.values()])
 
+    # score sentence wrt reference summaries (rank-svm)
     def compute_ranksvm_score(self, sentence):  # see litRev file
         num = float(sum([ref.rougeN_sent_sim(sentence) for ref in self.father.references.values()]))
         den = float(sum([r.tot_count_big for r in self.father.references.values()]))
