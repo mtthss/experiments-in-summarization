@@ -2,6 +2,7 @@ import os
 import pdb
 import nltk
 import time
+import math
 import numpy as np
 import xml.etree.ElementTree as ET
 
@@ -15,10 +16,11 @@ from contextlib import closing
 from nltk.corpus import stopwords
 from collections import defaultdict
 from multiprocessing.pool import Pool
-from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 
 
 __author__ = 'matteo'
+cachedStopWords = stopwords.words("english")
 
 
 # utility function for multiprocessing map
@@ -32,6 +34,10 @@ def clean(txt, stop=False, stem=False):
     txt = re.sub('"|\'|-|\||\n|<|>|\\\\+', ' ', txt)
     txt = re.sub('\s+', ' ', txt)
     txt = txt.lower()
+    txt = ''.join(i for i in txt if not i.isdigit())
+
+    txt = ''.join([word for word in txt.split() if word not in cachedStopWords])
+
     return txt.strip()
 
 # ensemble of collections to be used for training
@@ -92,7 +98,7 @@ class Corpus:
             for d in c.docs.values():
                 for s in d.sent.values():
                     x_list.append(s[1])
-                    y_list.append(s[2]) #2
+                    y_list.append(s[2]+s[3]) #s[2]+s[3]
 
         X = np.asarray(x_list)
         y = np.asarray(y_list)
@@ -114,6 +120,9 @@ class Collection:
 
         self.cv = None          # count vectorizer on whole collection
         self.doc_BoW = None     # doc representation as bag of words
+        self.tv = None          # count vectorizer on whole collection
+        self.doc_tfidf = None   # doc representation using tfidf
+
         self.docs = {}          # documents to summarize: {id: document-object}
         self.references = {}    # human references: {id: reference-object}
 
@@ -171,11 +180,22 @@ class Collection:
     def read_test_collections(self, feed):
 
         tst_path = "./data/feeds/"+feed
+        texts = []
+        hls = []
 
         for filename in os.listdir(tst_path):
             root = ET.parse(tst_path+"/"+filename).getroot()
             id = root.find('DOCNO').text
-            self.docs[id] = Document(root.find('HEADLINE').text, root.find('TEXT').text, id, self)
+            hl = root.find('HEADLINE').text
+            ct = root.find('TEXT').text
+            self.docs[id] = Document(hl, ct, id, self)
+            texts.append(ct)
+            hls.append(hl)
+
+        # process with count vectorizer
+        self.cv = CountVectorizer(analyzer="word",stop_words=self.cachedStopWords,preprocessor=clean,max_features=5000,lowercase=True)
+        self.doc_BoW = self.cv.fit_transform(texts+hls)
+
 
     # process document, compute features, and if requested label data
     def process_collection(self, score=True):
@@ -225,9 +245,13 @@ class Document:
 
         P = 1.0/count
         F5 = 1 if count <=5 else 0
-        LEN = len(tok_sent)
+        LEN = 0 #len(tok_sent)
         LM = self.father.model.score(s)
         VS1 = 1 - spatial.distance.cosine(self.hl_vsv_1.toarray(), self.father.cv.transform([s]).toarray())
+
+        if math.isnan(VS1):
+            #print s, self.headline
+            VS1 = 0
 
         return (P, F5, LEN, LM, VS1)
 
