@@ -3,6 +3,7 @@ from data_structures import Corpus, Collection
 from heapq import heappush, nlargest
 import numpy as np
 import pdb
+import time
 
 
 __author__ = 'matteo'
@@ -42,31 +43,44 @@ def lead(collection):
 # main
 if __name__ == '__main__':
 
-    print "loading corpus..."
-    cp = Corpus(1, test_mode=True) # optimal 6
+    print "Processing corpus..."
+    start = time.time()
+    cp = Corpus(8, test_mode=True) # optimal 6
     (X, y) = cp.export_training_data_regression()
+    load_time = time.time()-start
 
-    print "\ntesting lead..."
+    print "\nTesting lead..."
     w = learn_relscore_function(X, y, "lead")
+    start = time.time()
     summ = summarize(cp.collections['d301i'], w, 'greedy',6)
+    lead_time = time.time()-start
     for s in summ:
         print s.strip()
 
-    print "\nlinear regression..."
+    print "\nLinear regression..."
     w = learn_relscore_function(X, y, "linear-reg")
+    start = time.time()
     summ = summarize(cp.collections['d301i'], w, 'greedy',6)
+    linreg_time = time.time()-start
     for s in summ:
         print s.strip()
 
-    print "\nloading read test feeds..."
+    print "\nLoading read test feeds..."
     c = Collection()
     c.read_test_collections("grexit")
     c.process_collection(False)
 
-    print "\nevaluate on true feed: lin reg"
+    print "\nEvaluate on true feed (lin reg)..."
+    start = time.time()
     summ = summarize(c, w, 'greedy',6)
     for s in summ:
         print s.strip()
+    linreg_grexit_time = time.time()-start
 
-
+    print "\nWeights..."
     print w
+
+    print "\nProcessing: %f seconds" % load_time
+    print "Lead: %f seconds" % lead_time
+    print "Lin Reg (train collection): %f seconds" % linreg_time
+    print "Lin Reg (test collection): %f seconds" % linreg_grexit_time

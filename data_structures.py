@@ -1,4 +1,3 @@
-import os
 import pdb
 import nltk
 import time
@@ -15,18 +14,25 @@ from nltk.util import ngrams
 from contextlib import closing
 from nltk.corpus import stopwords
 from collections import defaultdict
+from nltk.stem import PorterStemmer
 from multiprocessing.pool import Pool
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 
 
 __author__ = 'matteo'
+
+
 cachedStopWords = stopwords.words("english")
+LModel = model = kenlm.LanguageModel('kenlm/bible.klm') # http://victor.chahuneau.fr/notes/2012/07/03/kenlm.html, NEURAL-LM https://github.com/pauldb89/OxLM
+sent_detector = nltk.data.load('tokenizers/punkt/english.pickle')
+stemmer = PorterStemmer()
+
 
 
 # utility function for multiprocessing map
 def initialize_collection(params_bundle):
-    c = Collection(params_bundle[0], params_bundle[1])
-    c.readCollectionFromDir(params_bundle[2], params_bundle[3])
+    c = Collection()
+    c.readCollectionFromDir(params_bundle[0], params_bundle[1])
     c.process_collection()
     return c
 
@@ -35,10 +41,9 @@ def clean(txt, stop=False, stem=False):
     txt = re.sub('\s+', ' ', txt)
     txt = txt.lower()
     txt = ''.join(i for i in txt if not i.isdigit())
-
-    txt = ''.join([word for word in txt.split() if word not in cachedStopWords])
-
+    txt = ''.join([stemmer.stem(word) for word in txt.split() if word not in cachedStopWords])
     return txt.strip()
+
 
 # ensemble of collections to be used for training
 class Corpus:
@@ -46,16 +51,7 @@ class Corpus:
     def __init__(self, parallel_jobs, test_mode=False):
 
         # initialize
-        tok_path = 'tokenizers/punkt/english.pickle'
         col_path = './data/collections'
-        LM_path = './kenlm-master/lm/test.arpa'
-
-        # intialize models
-        sent_detector = nltk.data.load(tok_path)
-        # TODO to train bigger more accurate model https://kheafield.com/code/kenlm/estimation/
-        # TODO https://github.com/kpu/kenlm
-        # TODO http://victor.chahuneau.fr/notes/2012/07/03/kenlm.html
-        self.model = kenlm.LanguageModel(LM_path)
 
         # collect collections paths
         count = 0
@@ -63,7 +59,7 @@ class Corpus:
         for year in os.listdir(col_path):
             for code in os.listdir(col_path+"/"+year):
                 if code!="duc2005_topics.sgml" and (code not in ["d408c", "d671g", "d442g"]):
-                    path_list.append((sent_detector, self.model, year, code))
+                    path_list.append((year, code))
                     if test_mode and count>10:
                         break
                     count += 1
@@ -108,11 +104,7 @@ class Corpus:
 # set of documents related to the same topic
 class Collection:
 
-    def __init__(self, tokenizer=None, model=None):
-
-        self.sent_detector = tokenizer if tokenizer!=None else nltk.data.load('tokenizers/punkt/english.pickle')
-        self.model = model if model!=None else kenlm.LanguageModel('./kenlm-master/lm/test.arpa')
-        self.cachedStopWords = stopwords.words("english")   # loaded stopwords list
+    def __init__(self, tokenizer=None):
 
         self.code = -1          # id of the collection
         self.topic_title = -1   # keywords / topic title
@@ -121,7 +113,7 @@ class Collection:
         self.cv = None          # count vectorizer on whole collection
         self.doc_BoW = None     # doc representation as bag of words
         self.tv = None          # count vectorizer on whole collection
-        self.doc_tfidf = None   # doc representation using tfidf
+        self.doc_tfidf = None   # doc representation using tf-idf
 
         self.docs = {}          # documents to summarize: {id: document-object}
         self.references = {}    # human references: {id: reference-object}
@@ -165,7 +157,7 @@ class Collection:
             self.docs[id] = Document(hl, txt, id, self)
 
         # process with count vectorizer
-        self.cv = CountVectorizer(analyzer="word",stop_words=self.cachedStopWords,preprocessor=clean,max_features=5000,lowercase=True)
+        self.cv = CountVectorizer(analyzer="word",stop_words=cachedStopWords,preprocessor=clean,max_features=5000,lowercase=True)
         self.doc_BoW = self.cv.fit_transform(texts+hls)
 
         # read references
@@ -193,9 +185,8 @@ class Collection:
             hls.append(hl)
 
         # process with count vectorizer
-        self.cv = CountVectorizer(analyzer="word",stop_words=self.cachedStopWords,preprocessor=clean,max_features=5000,lowercase=True)
+        self.cv = CountVectorizer(analyzer="word",stop_words=cachedStopWords,preprocessor=clean,max_features=5000,lowercase=True)
         self.doc_BoW = self.cv.fit_transform(texts+hls)
-
 
     # process document, compute features, and if requested label data
     def process_collection(self, score=True):
@@ -226,7 +217,7 @@ class Document:
 
         # compute sentence features
         count = 1
-        for s in self.father.sent_detector.tokenize(self.raw_text):
+        for s in sent_detector.tokenize(self.raw_text):
 
             if len(clean(s))<15:
                 continue
@@ -239,18 +230,15 @@ class Document:
     # compute sentence features (P, F5, LEN, LM, VS1)
     def compute_features(self, s, count):
 
-        # TODO http://scikit-learn.org/stable/modules/generated/sklearn.feature_extraction.text.TfidfTransformer.html
-
-        tok_sent = [x for x in nltk.tokenize.word_tokenize(s) if x not in self.father.cachedStopWords]
+        tok_sent = [x for x in nltk.tokenize.word_tokenize(s) if x not in cachedStopWords]
 
         P = 1.0/count
         F5 = 1 if count <=5 else 0
-        LEN = 0 #len(tok_sent)
-        LM = self.father.model.score(s)
+        LEN = len(tok_sent)/30.0
+        LM = LModel.score(s)
         VS1 = 1 - spatial.distance.cosine(self.hl_vsv_1.toarray(), self.father.cv.transform([s]).toarray())
 
         if math.isnan(VS1):
-            #print s, self.headline
             VS1 = 0
 
         return (P, F5, LEN, LM, VS1)
@@ -277,11 +265,10 @@ class Reference:
         self.tot_count_uni = 0
         self.tot_count_big = 0
 
-        self.cachedStopWords = stopwords.words("english")
         self.tokens = nltk.tokenize.word_tokenize(self.ref)
 
         for word in self.tokens:
-            if word not in self.cachedStopWords:
+            if word not in cachedStopWords:
                 self.unigram_dict[word] += 1
                 self.tot_count_uni += 1
 
@@ -289,14 +276,16 @@ class Reference:
             self.bigram_dict[big]+=1
             self.tot_count_big += 1
 
+    # svr score computation
     def basic_sent_sim(self, sentence):    # numerator, see litRev for complete formula
         l =[]
         for word in nltk.tokenize.word_tokenize(sentence):
-            if word not in self.cachedStopWords: l.append(self.unigram_dict[word])
+            if word not in cachedStopWords: l.append(self.unigram_dict[word])
         if len(l)==0:
             return 0
         return sum(l)/float(len(l))
 
+    # ranksvm score computation
     def rougeN_sent_sim(self, sentence):   # numerator, see litRev for complete formula
         l = 0
         tks = nltk.tokenize.word_tokenize(sentence)
@@ -310,7 +299,7 @@ if __name__ == '__main__':
 
     print "\ntesting corpus class..."
     start_time = time.time()
-    cp = Corpus(8) # optimal 6
+    cp = Corpus(8, test_mode=True) # optimal 6
     print "read and processed 50 collections (approx 1600 articles) in: "+str(time.time() - start_time)
 
     print "\ntesting exporting as matrix"
