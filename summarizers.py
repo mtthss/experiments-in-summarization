@@ -18,7 +18,7 @@ def summarize(collection, weights, algorithm, num_sent):
         for d in collection.docs.values():
             for s in d.sent.values():
                 rel = np.dot(np.asarray(list(s[1])), weights)
-                if len(s[0])<350:
+                if len(s[0])<350:       # modify simultaneously as line 270 of data_structures.py
                     heappush(h, (rel, s[0]))
 
         most_rel = nlargest(num_sent,h)
@@ -45,7 +45,7 @@ if __name__ == '__main__':
 
     print "Processing corpus..."
     start = time.time()
-    cp = Corpus(1, test_mode=True) #optimal 14
+    cp = Corpus(13) #optimal 13
     load_time = time.time()-start
 
     print "Exporting..."

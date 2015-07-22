@@ -66,13 +66,15 @@ class Corpus:
         count = 0
         path_list = []
         for year in os.listdir(col_path):
-            if year=="2006": continue
+            #if year=="2006": continue
             for code in os.listdir(col_path+"/"+year):
                 if (code!="duc2005_topics.sgml") and (code!="duc2006_topics.sgml") and (code not in ["d408c", "d671g", "d442g"]):
                     path_list.append((year, code))
-                    if test_mode and count>10:
+                    if test_mode and count>20:
                         break
                     count += 1
+
+        print "number of collection paths: ", len(path_list)
 
         # read and process documents, use parallelism is possible
         if parallel_jobs>1:
@@ -81,10 +83,14 @@ class Corpus:
         else:
             collection_list = [initialize_collection(x) for x in path_list]
 
+        print "number of collection objects: ", len(collection_list)
+
         # store result in a dictionary
         self.collections = {}
         for c in collection_list:
-            self.collections[c.code] = c
+            self.collections[c.code+c.year] = c
+
+        print "number of collections in dict: ", len(self.collections)
 
     # read corpus from a specified directory
     def read(self, path):
@@ -117,6 +123,8 @@ class Collection:
     def __init__(self, tokenizer=None):
 
         self.code = -1          # id of the collection
+        self.year = -1          # conference year
+
         self.topic_title = -1   # keywords / topic title
         self.topic_descr = -1   # description of expected content
         self.docs = {}          # documents to summarize: {id: document-object}
@@ -134,6 +142,7 @@ class Collection:
 
         #initialize
         self.code = code
+        self.year = year
         doc_path = "./data/collections/"+str(year)+"/"+code
         top_path = "./data/collections/"+str(year)+"/duc"+str(year)+"_topics.sgml"
         ref_path = "./data/references/"+str(year)
@@ -266,8 +275,8 @@ class Document:
         # compute sentence features
         count = 1
         for s in sent_detector.tokenize(self.raw_text):
-
-            if len(clean(s))<15:
+            # len(clean(s))<15
+            if len(s)<50 or len(s)>350:  # modify simultaneously as line 21 of summarizers.py
                 continue
 
             s1 = self.compute_score(s,"basic") if score else 0
@@ -316,12 +325,12 @@ if __name__ == '__main__':
 
     print "\ntesting corpus class..."
     start_time = time.time()
-    cp = Corpus(13, test_mode=True)
-    print "read and processed 50 collections (approx 1600 articles) in: "+str(time.time() - start_time)
+    cp = Corpus(18)
+    print "read and processed "+str(len(cp.collections))+" collections in: "+str(time.time() - start_time)
 
     print "\ntesting exporting as matrix"
     (X,y) = cp.export_training_data_regression()
-    print X.shape, y.shape
+    print "shape of X and y: ", X.shape, y.shape
 
     if False:
         pdb.set_trace()

@@ -2,9 +2,9 @@
 Experiment on various multidocument summarization methods
 ---------------------------------------------------------
 
-- evaluate classifical hand crafted relevance features
+- evaluate classifical hand crafted relevance features 
 
-- use linear score functions to evaluate relevance
+- use linear score functions to evaluate relevance 
 
 - learn feature weights using support vector machines trained on DUC conference datasets
 
