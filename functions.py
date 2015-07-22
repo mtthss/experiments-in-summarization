@@ -30,14 +30,13 @@ def learn_relscore_function(X_rel, y, algorithm="svr"):
         clf.fit (X_rel, y)
         weights = clf.coef_
     elif(algorithm=="lead"):
-        weights = np.asarray([1, 0, 0, 0, 0]) # first intercept, then others
+        weights = np.asarray([1, 0, 0, 0, 0, 0, 0])
     elif(algorithm=="test"):
-        weights = np.asarray([0.6, 0.35, 0.025, 0.025, 0]) # first intercept, then others
+        weights = np.asarray([0.6, 0.35, 0.025, 0.025, 0, 0, 0])
     else:
         raise Exception('Learn score function: Invalid algorithm')
 
     return weights
-
 
 # choose best order for a set of extracted sentences
 def reorder(sent_list, algorithm):

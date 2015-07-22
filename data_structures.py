@@ -10,11 +10,13 @@ import os
 import kenlm
 
 from scipy import spatial
+from nltk import FreqDist
 from nltk.util import ngrams
 from contextlib import closing
 from nltk.corpus import stopwords
 from collections import defaultdict
 from nltk.stem import PorterStemmer
+from nltk.tag.mapping import map_tag
 from multiprocessing.pool import Pool
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 
@@ -22,11 +24,18 @@ from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 __author__ = 'matteo'
 
 
+# grammars features: http://www.nltk.org/book/ch08.html
+# dependencies trees: http://www.nltk.org/book/ch08.html
+# coreferences https://github.com/dasmith/stanford-corenlp-python WITH EXAMPLE
+# think handcrafted pronoun resolution rules (start with "this is" -> subst with last noun previous sent)
+
 cachedStopWords = stopwords.words("english")
-LModel = model = kenlm.LanguageModel('kenlm/bible.klm') # http://victor.chahuneau.fr/notes/2012/07/03/kenlm.html, NEURAL-LM https://github.com/pauldb89/OxLM
+cachedStopPOStags = ['.', 'X', 'PRT', 'ADP', 'CONJ', 'ADV', 'DET']
+
+pos_tagger = nltk.pos_tag
+LModel = kenlm.LanguageModel('kenlm/bible.klm') # http://victor.chahuneau.fr/notes/2012/07/03/kenlm.html, NEURAL-LM https://github.com/pauldb89/OxLM
 sent_detector = nltk.data.load('tokenizers/punkt/english.pickle')
 stemmer = PorterStemmer()
-
 
 
 # utility function for multiprocessing map
@@ -41,7 +50,7 @@ def clean(txt, stop=False, stem=False):
     txt = re.sub('\s+', ' ', txt)
     txt = txt.lower()
     txt = ''.join(i for i in txt if not i.isdigit())
-    txt = ''.join([stemmer.stem(word) for word in txt.split() if word not in cachedStopWords])
+    txt = ' '.join([stemmer.stem(word) for word in txt.split() if word not in cachedStopWords])
     return txt.strip()
 
 
@@ -57,8 +66,9 @@ class Corpus:
         count = 0
         path_list = []
         for year in os.listdir(col_path):
+            if year=="2005": continue
             for code in os.listdir(col_path+"/"+year):
-                if code!="duc2005_topics.sgml" and (code not in ["d408c", "d671g", "d442g"]):
+                if (code!="duc2005_topics.sgml") and (code!="duc2006_topics.sgml") and (code not in ["d408c", "d671g", "d442g"]):
                     path_list.append((year, code))
                     if test_mode and count>10:
                         break
@@ -94,7 +104,7 @@ class Corpus:
             for d in c.docs.values():
                 for s in d.sent.values():
                     x_list.append(s[1])
-                    y_list.append(s[2]+s[3]) #s[2]+s[3]
+                    y_list.append(s[2])
 
         X = np.asarray(x_list)
         y = np.asarray(y_list)
@@ -109,14 +119,15 @@ class Collection:
         self.code = -1          # id of the collection
         self.topic_title = -1   # keywords / topic title
         self.topic_descr = -1   # description of expected content
+        self.docs = {}          # documents to summarize: {id: document-object}
 
-        self.cv = None          # count vectorizer on whole collection
+        self.cv = None          # count-vectorizer on whole collection
         self.doc_BoW = None     # doc representation as bag of words
-        self.tv = None          # count vectorizer on whole collection
+        self.tv = None          # count-vectorizer on whole collection
         self.doc_tfidf = None   # doc representation using tf-idf
 
-        self.docs = {}          # documents to summarize: {id: document-object}
-        self.references = {}    # human references: {id: reference-object}
+        self.ref_BoW = None     # doc representation as bag of words
+        self.ref_dict = {}      # set of references for this collection
 
     # read specified collection, including docs, topic and references
     def readCollectionFromDir(self, year, code):
@@ -124,7 +135,7 @@ class Collection:
         #initialize
         self.code = code
         doc_path = "./data/collections/"+str(year)+"/"+code
-        top_path = "./data/collections/"+str(year)+"/duc2005_topics.sgml"
+        top_path = "./data/collections/"+str(year)+"/duc"+str(year)+"_topics.sgml"
         ref_path = "./data/references/"+str(year)
 
         # read topic
@@ -139,34 +150,30 @@ class Collection:
         texts = []
         hls = []
         for filename in os.listdir(doc_path):
+
             root = ET.parse(doc_path+"/"+filename).getroot()
-            id = root.find('DOCNO').text
+            node = root.find('HEADLINE')
 
-            txt = root.find('TEXT').text
-            if len(txt)<10:
-                ps = root.findall('./TEXT//P')
-                txt = "".join([par.text for par in ps])
-            texts.append(txt)
-
-            hl = root.find('HEADLINE').text
-            if len(hl)<6:
-                ps = root.findall('./HEADLINE//P')
-                hl = "".join([par.text for par in ps])
-            hls.append(hl)
-
-            self.docs[id] = Document(hl, txt, id, self)
-
-        # process with count vectorizer
-        self.cv = CountVectorizer(analyzer="word",stop_words=cachedStopWords,preprocessor=clean,max_features=5000,lowercase=True)
-        self.doc_BoW = self.cv.fit_transform(texts+hls)
+            if node!=None:
+                id = root.find('DOCNO').text
+                txt = root.find('TEXT').text
+                hl = node.text
+                texts.append(txt)
+                hls.append(hl)
+                self.docs[id] = Document(hl, txt, id, self)
 
         # read references
         for filename in os.listdir(ref_path):
             encod = filename.split(".")
-            with open(ref_path+"/"+filename, 'r') as f:
-                content = f.read()
-            if encod[0].lower()==code[:-1]:
-                self.references[encod[4]] = Reference(content,self)
+            if encod[0].lower()==code[:-1].lower():
+                with open(ref_path+"/"+filename, 'r') as f:
+                    content = f.read()
+                self.ref_dict[encod[4]] = content
+
+        # process with count vectorizer
+        self.cv = CountVectorizer(analyzer="word",stop_words=cachedStopWords,preprocessor=clean,max_features=5000,lowercase=True)
+        self.doc_BoW = self.cv.fit_transform(texts+hls)
+        self.ref_BoW = self.cv.transform([c for c in self.ref_dict.values()])
 
     # read test collection for which you want to generate summaries
     def read_test_collections(self, feed):
@@ -190,8 +197,47 @@ class Collection:
 
     # process document, compute features, and if requested label data
     def process_collection(self, score=True):
-            for d in self.docs.values():
-                d.process_document(score)
+        for d in self.docs.values():
+            d.process_document(score)
+
+    # basic labelling
+    def basic_labelling(self, sent):
+        l =[]
+        for r_count in xrange(len(self.ref_dict)):
+            sum = 0
+            w_count = 0
+            for word in nltk.tokenize.word_tokenize(clean(sent)):
+                idx = self.cv.vocabulary_.get(word)
+                if idx!=None:
+                    sum += self.ref_BoW[r_count, idx]
+                    w_count += 1
+            if w_count != 0:
+                l.append(float(sum)/w_count)
+            else:
+                print sent
+                l.append(0)
+            r_count += 1
+        try:
+            return max(l)
+        except:
+            pass
+
+    # vector space modelling labelling
+    def vsm_labelling(self, sent):
+
+        vs = []
+        sent_v = self.cv.transform([sent]).toarray()
+        for ref in self.ref_dict.values():
+            vs.append(1 - spatial.distance.cosine(sent_v, self.cv.transform([ref]).toarray()))
+        return max(vs)
+
+    # rougeN labelling
+    def rougeN_labelling(self, sent):
+        return 0
+
+    # tf idf cosine similarity labelling
+    def tfidf_labelling(self):
+        return 0
 
 
 # document class, including processing methods
@@ -222,76 +268,45 @@ class Document:
             if len(clean(s))<15:
                 continue
 
-            s1 = self.compute_svr_score(s) if score else 0
-            s2 = self.compute_ranksvm_score(s) if score else 0
-            self.sent[count] = (s, self.compute_features(s, count), s1, s2)
+            s1 = self.compute_score(s,"basic") if score else 0
+            s2 = self.compute_score(s,"vsm")  if score else 0
+            s3 = self.compute_score(s,"n-rouge")  if score else 0
+            self.sent[count] = (s, self.compute_features(s, count), s1)
             count += 1
 
     # compute sentence features (P, F5, LEN, LM, VS1)
     def compute_features(self, s, count):
 
-        tok_sent = [x for x in nltk.tokenize.word_tokenize(s) if x not in cachedStopWords]
+        tok_sent = nltk.tokenize.word_tokenize(s)
+        stop_tok_sent = [x for x in tok_sent if x not in cachedStopWords]
 
         P = 1.0/count
         F5 = 1 if count <=5 else 0
-        LEN = len(tok_sent)/30.0
+        LEN = len(stop_tok_sent)/30.0
         LM = LModel.score(s)
+        tag_fd = FreqDist(map_tag("en-ptb", "universal",tag) if map_tag("en-ptb", "universal",tag) not in cachedStopPOStags else "OTHER" for (word, tag) in pos_tagger(tok_sent))
+        NN = tag_fd.freq("NOUN")
+        VB = tag_fd.freq("VERB")
+        PR = tag_fd.freq("PRON")
+        AD = tag_fd.freq("ADJ")
+
         VS1 = 1 - spatial.distance.cosine(self.hl_vsv_1.toarray(), self.father.cv.transform([s]).toarray())
 
         if math.isnan(VS1):
             VS1 = 0
 
-        return (P, F5, LEN, LM, VS1)
+        return (P, F5, LEN, LM, VS1, VB, NN)
 
     # score sentence wrt reference summaries (svr)
-    def compute_svr_score(self, sentence):  # see litRev file
-        return max([ref.basic_sent_sim(sentence) for ref in self.father.references.values()])
-
-    # score sentence wrt reference summaries (rank-svm)
-    def compute_ranksvm_score(self, sentence):  # see litRev file
-        num = float(sum([ref.rougeN_sent_sim(sentence) for ref in self.father.references.values()]))
-        den = float(sum([r.tot_count_big for r in self.father.references.values()]))
-        return num/den
-
-
-# class for human reference, including methods for comparing
-class Reference:
-
-    def __init__(self, raw_text, collection):
-
-        self.ref = raw_text.strip()              # raw text of the human summary
-        self.unigram_dict = defaultdict(int)     # dictionary with n-gram counts
-        self.bigram_dict = defaultdict(int)
-        self.tot_count_uni = 0
-        self.tot_count_big = 0
-
-        self.tokens = nltk.tokenize.word_tokenize(self.ref)
-
-        for word in self.tokens:
-            if word not in cachedStopWords:
-                self.unigram_dict[word] += 1
-                self.tot_count_uni += 1
-
-        for big in ngrams(self.tokens,2):
-            self.bigram_dict[big]+=1
-            self.tot_count_big += 1
-
-    # svr score computation
-    def basic_sent_sim(self, sentence):    # numerator, see litRev for complete formula
-        l =[]
-        for word in nltk.tokenize.word_tokenize(sentence):
-            if word not in cachedStopWords: l.append(self.unigram_dict[word])
-        if len(l)==0:
-            return 0
-        return sum(l)/float(len(l))
-
-    # ranksvm score computation
-    def rougeN_sent_sim(self, sentence):   # numerator, see litRev for complete formula
-        l = 0
-        tks = nltk.tokenize.word_tokenize(sentence)
-        for big in ngrams(tks,2):
-            l += self.bigram_dict[big]
-        return l
+    def compute_score(self, sentence, method):
+        if method == "basic":
+            return self.father.basic_labelling(sentence)
+        elif method == "n-rouge":
+            return self.father.rougeN_labelling(sentence)
+        elif method == "vsm":
+            return self.father.vsm_labelling(sentence)
+        else:
+            raise Exception('Label training data: Invalid algorithm')
 
 
 # main
@@ -299,7 +314,7 @@ if __name__ == '__main__':
 
     print "\ntesting corpus class..."
     start_time = time.time()
-    cp = Corpus(8, test_mode=True) # optimal 6
+    cp = Corpus(1, test_mode=True)
     print "read and processed 50 collections (approx 1600 articles) in: "+str(time.time() - start_time)
 
     print "\ntesting exporting as matrix"

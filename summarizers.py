@@ -45,7 +45,7 @@ if __name__ == '__main__':
 
     print "Processing corpus..."
     start = time.time()
-    cp = Corpus(8, test_mode=True) # optimal 6
+    cp = Corpus(12, test_mode=True) #optimal 14
     (X, y) = cp.export_training_data_regression()
     load_time = time.time()-start
 
