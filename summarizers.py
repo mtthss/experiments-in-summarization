@@ -45,9 +45,13 @@ if __name__ == '__main__':
 
     print "Processing corpus..."
     start = time.time()
-    cp = Corpus(12, test_mode=True) #optimal 14
-    (X, y) = cp.export_training_data_regression()
+    cp = Corpus(1, test_mode=True) #optimal 14
     load_time = time.time()-start
+
+    print "Exporting..."
+    start = time.time()
+    (X, y) = cp.export_training_data_regression()
+    export_time = time.time()-start
 
     print "\nTesting lead..."
     w = learn_relscore_function(X, y, "lead")
@@ -81,6 +85,7 @@ if __name__ == '__main__':
     print w
 
     print "\nProcessing: %f seconds" % load_time
+    print "Exporting: %f seconds" % export_time
     print "Lead: %f seconds" % lead_time
     print "Lin Reg (train collection): %f seconds" % linreg_time
     print "Lin Reg (test collection): %f seconds" % linreg_grexit_time

@@ -66,6 +66,6 @@ print LModel.score(text)
 print LModel.score(text2)
 print LModel.score(text3)
 
-w = nltk.tokenize.word_tokenize("don't you think it's rather amusing")
+w = nltk.tokenize.word_tokenize("'don't: you think's it's rather amusing'")
 print w
 

@@ -66,7 +66,7 @@ class Corpus:
         count = 0
         path_list = []
         for year in os.listdir(col_path):
-            if year=="2005": continue
+            if year=="2006": continue
             for code in os.listdir(col_path+"/"+year):
                 if (code!="duc2005_topics.sgml") and (code!="duc2006_topics.sgml") and (code not in ["d408c", "d671g", "d442g"]):
                     path_list.append((year, code))
@@ -225,11 +225,13 @@ class Collection:
     # vector space modelling labelling
     def vsm_labelling(self, sent):
 
-        vs = []
+        val = 0
         sent_v = self.cv.transform([sent]).toarray()
         for ref in self.ref_dict.values():
-            vs.append(1 - spatial.distance.cosine(sent_v, self.cv.transform([ref]).toarray()))
-        return max(vs)
+            temp = 1 - spatial.distance.cosine(sent_v, self.cv.transform([ref]).toarray())
+            if math.isnan(temp): temp = 0
+            val = max(temp, val)
+        return val
 
     # rougeN labelling
     def rougeN_labelling(self, sent):
@@ -269,8 +271,8 @@ class Document:
                 continue
 
             s1 = self.compute_score(s,"basic") if score else 0
-            s2 = self.compute_score(s,"vsm")  if score else 0
-            s3 = self.compute_score(s,"n-rouge")  if score else 0
+            #s2 = self.compute_score(s,"vsm")  if score else 0
+            #s3 = self.compute_score(s,"n-rouge")  if score else 0
             self.sent[count] = (s, self.compute_features(s, count), s1)
             count += 1
 
@@ -291,9 +293,9 @@ class Document:
         AD = tag_fd.freq("ADJ")
 
         VS1 = 1 - spatial.distance.cosine(self.hl_vsv_1.toarray(), self.father.cv.transform([s]).toarray())
-
         if math.isnan(VS1):
             VS1 = 0
+            print self.father.code, self.id
 
         return (P, F5, LEN, LM, VS1, VB, NN)
 
@@ -314,7 +316,7 @@ if __name__ == '__main__':
 
     print "\ntesting corpus class..."
     start_time = time.time()
-    cp = Corpus(1, test_mode=True)
+    cp = Corpus(13, test_mode=True)
     print "read and processed 50 collections (approx 1600 articles) in: "+str(time.time() - start_time)
 
     print "\ntesting exporting as matrix"
