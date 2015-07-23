@@ -11,10 +11,8 @@ import kenlm
 
 from scipy import spatial
 from nltk import FreqDist
-from nltk.util import ngrams
 from contextlib import closing
 from nltk.corpus import stopwords
-from collections import defaultdict
 from nltk.stem import PorterStemmer
 from nltk.tag.mapping import map_tag
 from multiprocessing.pool import Pool
@@ -40,9 +38,11 @@ stemmer = PorterStemmer()
 
 # utility function for multiprocessing map
 def initialize_collection(params_bundle):
+    print str(params_bundle[0]), str(params_bundle[1]), "start..."
     c = Collection()
     c.readCollectionFromDir(params_bundle[0], params_bundle[1])
     c.process_collection()
+    print str(params_bundle[0]), str(params_bundle[1]), "done!"
     return c
 
 def clean(txt, stop=False, stem=False):
@@ -63,9 +63,9 @@ class Corpus:
         col_path = './data/collections'
 
         # collect collections paths
-        count = 0
         path_list = []
         for year in os.listdir(col_path):
+            count = 0
             #if year=="2006": continue
             for code in os.listdir(col_path+"/"+year):
                 if (code!="duc2005_topics.sgml") and (code!="duc2006_topics.sgml") and (code not in ["d408c", "d671g", "d442g"]):
@@ -74,16 +74,12 @@ class Corpus:
                         break
                     count += 1
 
-        print "number of collection paths: ", len(path_list)
-
         # read and process documents, use parallelism is possible
         if parallel_jobs>1:
             with closing(Pool(processes=parallel_jobs)) as pool:
                 collection_list = pool.map(initialize_collection, path_list)
         else:
             collection_list = [initialize_collection(x) for x in path_list]
-
-        print "number of collection objects: ", len(collection_list)
 
         # store result in a dictionary
         self.collections = {}
@@ -92,29 +88,27 @@ class Corpus:
 
         print "number of collections in dict: ", len(self.collections)
 
-    # read corpus from a specified directory
-    def read(self, path):
-        pass
-
-    # from a pickled list of Collections
-    def load(self, path):
-        pass
-
-    # export training data in matrix format
-    def export_training_data_regression(self):
+    # export data: X,y = train sentence and score. t = test collections
+    def export_data(self):
 
         x_list = []
         y_list = []
+        t = []
+        count = 1
 
         for c in self.collections.values():
-            for d in c.docs.values():
-                for s in d.sent.values():
-                    x_list.append(s[1])
-                    y_list.append(s[2])
+            if count%6 == 0:
+                t.append(c)
+            else:
+                for d in c.docs.values():
+                    for s in d.sent.values():
+                        x_list.append(s[1])
+                        y_list.append(s[2])
+            count +=1
 
         X = np.asarray(x_list)
         y = np.asarray(y_list)
-        return (X,y)
+        return (X,y,t)
 
 
 # set of documents related to the same topic
@@ -180,9 +174,12 @@ class Collection:
                 self.ref_dict[encod[4]] = content
 
         # process with count vectorizer
-        self.cv = CountVectorizer(analyzer="word",stop_words=cachedStopWords,preprocessor=clean,max_features=5000,lowercase=True)
-        self.doc_BoW = self.cv.fit_transform(texts+hls)
-        self.ref_BoW = self.cv.transform([c for c in self.ref_dict.values()])
+        try:
+            self.cv = CountVectorizer(analyzer="word",stop_words=cachedStopWords,preprocessor=clean,max_features=5000,lowercase=True)
+            self.doc_BoW = self.cv.fit_transform(texts+hls)
+            self.ref_BoW = self.cv.transform([c for c in self.ref_dict.values()])
+        except:
+            pdb.set_trace()
 
     # read test collection for which you want to generate summaries
     def read_test_collections(self, feed):
@@ -325,7 +322,7 @@ if __name__ == '__main__':
 
     print "\ntesting corpus class..."
     start_time = time.time()
-    cp = Corpus(18)
+    cp = Corpus(16)
     print "read and processed "+str(len(cp.collections))+" collections in: "+str(time.time() - start_time)
 
     print "\ntesting exporting as matrix"

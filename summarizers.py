@@ -1,9 +1,14 @@
+import os
+import re
+import pdb
+import time
+import datetime
+import numpy as np
+import cPickle as pk
+
 from functions import learn_relscore_function
 from data_structures import Corpus, Collection
 from heapq import heappush, nlargest
-import numpy as np
-import pdb
-import time
 
 
 __author__ = 'matteo'
@@ -22,7 +27,7 @@ def summarize(collection, weights, algorithm, num_sent):
                     heappush(h, (rel, s[0]))
 
         most_rel = nlargest(num_sent,h)
-        most_rel_txt = [sent[1] for sent in most_rel]
+        most_rel_txt = [re.sub('\s+', ' ', sent[1]).strip() for sent in most_rel]
         return most_rel_txt
 
     elif algorithm=='dyn-prog':
@@ -35,57 +40,93 @@ def summarize(collection, weights, algorithm, num_sent):
     return None
 
 
-# extract lead sentences
-def lead(collection):
-    pass
-
-
 # main
 if __name__ == '__main__':
 
-    print "Processing corpus..."
-    start = time.time()
-    cp = Corpus(13) #optimal 13
-    load_time = time.time()-start
+    try:
 
-    print "Exporting..."
-    start = time.time()
-    (X, y) = cp.export_training_data_regression()
-    export_time = time.time()-start
+        print "\nConfiguring..."
+        read = False
+        sum_len = 6
+        mt = datetime.datetime.now().month
+        d = datetime.datetime.now().day
+        h = datetime.datetime.now().hour
+        mn = datetime.datetime.now().minute
+        id = str(mt)+"-"+str(d)+"-"+str(h)+"-"+str(mn)
+        d_name = "./results/"+id
 
-    print "\nTesting lead..."
-    w = learn_relscore_function(X, y, "lead")
-    start = time.time()
-    summ = summarize(cp.collections['d301i'], w, 'greedy',6)
-    lead_time = time.time()-start
-    for s in summ:
-        print s.strip()
+        print "\nProcessing corpus..."
+        start = time.time()
+        if read:
+            cp = Corpus(17)
+        else:
+            cp = pk.load(open("./pickles/corpus.pkl", "rb" ))
+        load_time = time.time() - start
 
-    print "\nLinear regression..."
-    w = learn_relscore_function(X, y, "linear-reg")
-    start = time.time()
-    summ = summarize(cp.collections['d301i'], w, 'greedy',6)
-    linreg_time = time.time()-start
-    for s in summ:
-        print s.strip()
+        print "\nPickling the corpus"
+        start = time.time()
+        if read:
+            pk.dump(cp, open("./pickles/corpus.pkl", "wb"))
+        pickle_time = time.time()
 
-    print "\nLoading read test feeds..."
-    c = Collection()
-    c.read_test_collections("grexit")
-    c.process_collection(False)
+        print "\nExporting..."
+        start = time.time()
+        (X, y, t) = cp.export_data()
+        export_time = time.time() - start
 
-    print "\nEvaluate on true feed (lin reg)..."
-    start = time.time()
-    summ = summarize(c, w, 'greedy',6)
-    for s in summ:
-        print s.strip()
-    linreg_grexit_time = time.time()-start
+        print "\nLead, evaluate on crime and drugs..."
+        w = learn_relscore_function(X, y, "lead")
+        start = time.time()
+        summ = summarize(cp.collections['d301i'+'2005'], w, 'greedy', sum_len)
+        lead_time = time.time() - start
+        for s in summ:
+            print s.strip()
 
-    print "\nWeights..."
-    print w
+        print "\nLinear regression, evaluate on crime and drugs..."
+        w = learn_relscore_function(X, y, "linear-reg")
+        start = time.time()
+        summ = summarize(cp.collections['d301i'+'2005'], w, 'greedy', sum_len)
+        linreg_time = time.time() - start
+        for s in summ:
+            print s.strip()
 
-    print "\nProcessing: %f seconds" % load_time
-    print "Exporting: %f seconds" % export_time
-    print "Lead: %f seconds" % lead_time
-    print "Lin Reg (train collection): %f seconds" % linreg_time
-    print "Lin Reg (test collection): %f seconds" % linreg_grexit_time
+        print "\nGenerating summaries for test collections"
+        os.mkdir(d_name)
+        for c in t:
+            summ = summarize(c, w, 'greedy', sum_len)
+            out_file = open(d_name+"/"+c.year+"-"+c.code+".txt","w")
+            out_file.write("TOPIC\n")
+            out_file.write(c.topic_title)
+            out_file.write("\n\nDESCRIPTION\n")
+            out_file.write(c.topic_descr)
+            out_file.write("\n\nSUMMARY\n")
+            for s in summ:
+                out_file.write(s+"  ")
+            out_file.close()
+
+        print "\nLoading Signal test feeds..."
+        c = Collection()
+        c.read_test_collections("grexit")
+        c.process_collection(False)
+
+        print "\nEvaluate on true feed (lin reg)..."
+        start = time.time()
+        summ = summarize(c, w, 'greedy',sum_len)
+        for s in summ:
+            print s.strip()
+        linreg_grexit_time = time.time() - start
+
+        print "\nWeights..."
+        print w
+
+        print "\nProcessing: %f seconds" % load_time
+        print "Pickling: %f seconds" % pickle_time
+        print "Exporting: %f seconds" % export_time
+        print "Lead: %f seconds" % lead_time
+        print "Lin Reg (train collection): %f seconds" % linreg_time
+        print "Lin Reg (test collection): %f seconds" % linreg_grexit_time
+
+    except Exception as e:
+
+        print e
+        pdb.set_trace()
