@@ -75,6 +75,7 @@ if __name__ == '__main__':
         reg_algo = "gb-R"
         ext_algo = 'greedy'
         read = False
+        human_inspect = False
         sum_len = 6
         mt = datetime.datetime.now().month
         d = datetime.datetime.now().day
@@ -122,14 +123,15 @@ if __name__ == '__main__':
         start = time.time()
         for c in t:
             summ = summarize(c, w, ext_algo, sum_len)
-            out_file = open(d_name+"/"+c.year+"-"+c.code+".txt","w")
-            out_file.write("TOPIC\n")
-            out_file.write(c.topic_title)
-            out_file.write("\n\nDESCRIPTION\n")
-            out_file.write(c.topic_descr)
-            out_file.write("\n\nSUMMARY\n")
+            out_file = open(d_name+"/"+c.code.lower()+"_"+reg_algo,"w")
+            if human_inspect:
+                out_file.write("TOPIC\n")
+                out_file.write(c.topic_title)
+                out_file.write("\n\nDESCRIPTION\n")
+                out_file.write(c.topic_descr)
+                out_file.write("\n\nSUMMARY\n")
             for s in summ:
-                out_file.write(s+"  ")
+                out_file.write(s+"\n")
             out_file.close()
         store_test_time = time.time()-start
 
