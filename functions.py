@@ -1,42 +1,37 @@
-from functools import partial
-from sklearn import linear_model
-from sklearn.svm import SVR
-import numpy as np
 import pdb
+
+from sklearn.kernel_ridge import KernelRidge
+from sklearn.metrics import mean_squared_error
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.gaussian_process import GaussianProcess
+from sklearn.linear_model import LinearRegression, BayesianRidge
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 
 
 __author__ = 'matteo'
 
 
+# available relevance regressors
+options = {"linear-R" : LinearRegression(fit_intercept=False),
+           "kernel-RR": KernelRidge(kernel='rbf', gamma=0.1),
+           "bayes-RR" : BayesianRidge(fit_intercept=False, compute_score=True),
+           "rf-R": RandomForestRegressor(n_estimators=30),
+           "gb-R": GradientBoostingRegressor(n_estimators=30),
+           "gauss-PR": GaussianProcess(theta0=1e-2, thetaL=1e-4, thetaU=1e-1),
+           "decision-T": DecisionTreeRegressor(max_depth=2),
+           "lead" : None,
+           }
+
 # return partially applied function
-def learn_relscore_function(X_rel, y, algorithm="svr"):
-
-    # TODO python interfaces:
-    # https://bitbucket.org/wcauchois/pysvmlight
-    # https://pypi.python.org/pypi/svmlight
-
-    if(algorithm=="svr"):
-        svr_lin = SVR(kernel='linear', C=100000000)
-        svr_lin.fit(X_rel, y)
-        weights = svr_lin.coef_
-        print svr_lin.coef_
-        print svr_lin.intercept_
-    elif(algorithm=="svm-rank"):
-        # TODO http://fa.bianp.net/blog/2012/learning-to-rank-with-scikit-learn-the-pairwise-transform/
-        # TODO partially apply weights learned from svm-rank
-        pass
-    elif(algorithm=="linear-reg"):
-        clf = linear_model.LinearRegression(fit_intercept=False)
-        clf.fit (X_rel, y)
-        weights = clf.coef_
-    elif(algorithm=="lead"):
-        weights = np.asarray([1, 0, 0, 0, 0, 0, 0])
-    elif(algorithm=="test"):
-        weights = np.asarray([0.6, 0.35, 0.025, 0.025, 0, 0, 0])
-    else:
+def learn_relevance(X_rel, y, algorithm="svr"):
+    try:
+        clf = options[algorithm]
+    except:
         raise Exception('Learn score function: Invalid algorithm')
 
-    return weights
+    clf.fit (X_rel, y)
+    print "training error: ", mean_squared_error(y, clf.predict(X_rel))
+    return clf
 
 # choose best order for a set of extracted sentences
 def reorder(sent_list, algorithm):
@@ -45,3 +40,4 @@ def reorder(sent_list, algorithm):
 # process cross sentence references
 def preprocess_crossreferences(corpus):
     pass
+

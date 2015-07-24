@@ -282,7 +282,7 @@ class Document:
             self.sent[count] = (s, self.compute_features(s, count), s1)
             count += 1
 
-    # compute sentence features (P, F5, LEN, LM, VS1)
+    # compute sentence features
     def compute_features(self, s, count):
 
         tok_sent = nltk.tokenize.word_tokenize(s)
@@ -295,8 +295,8 @@ class Document:
         tag_fd = FreqDist(map_tag("en-ptb", "universal",tag) if map_tag("en-ptb", "universal",tag) not in cachedStopPOStags else "OTHER" for (word, tag) in pos_tagger(tok_sent))
         NN = tag_fd.freq("NOUN")
         VB = tag_fd.freq("VERB")
-        PR = tag_fd.freq("PRON")
-        AD = tag_fd.freq("ADJ")
+        # PR = tag_fd.freq("PRON")
+        # AD = tag_fd.freq("ADJ")
 
         VS1 = 1 - spatial.distance.cosine(self.hl_vsv_1.toarray(), self.father.cv.transform([s]).toarray())
         if math.isnan(VS1):

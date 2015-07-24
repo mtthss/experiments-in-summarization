@@ -6,7 +6,7 @@ import datetime
 import numpy as np
 import cPickle as pk
 
-from functions import learn_relscore_function
+from functions import learn_relevance
 from data_structures import Corpus, Collection
 from heapq import heappush, nlargest
 
@@ -15,14 +15,14 @@ __author__ = 'matteo'
 
 
 # summarize a collection
-def summarize(collection, weights, algorithm, num_sent):
+def summarize(collection, clf, algorithm, num_sent):
 
     h = []
 
     if algorithm=='greedy':
         for d in collection.docs.values():
             for s in d.sent.values():
-                rel = np.dot(np.asarray(list(s[1])), weights)
+                rel = clf.predict(np.asarray(list(s[1])))
                 if len(s[0])<350:       # modify simultaneously as line 270 of data_structures.py
                     heappush(h, (rel, s[0]))
 
@@ -39,6 +39,32 @@ def summarize(collection, weights, algorithm, num_sent):
 
     return None
 
+def greedy():
+    pass
+
+def dyn_prog():
+    pass
+
+def A_star():
+    pass
+
+
+# summarize a collection
+def multi_lead(collection, num_sent):
+
+    h = []
+    for d in collection.docs.values():
+        for s in d.sent.values():
+            lead_w = np.zeros(len(list(s[1])))
+            lead_w[0] = 1
+            rel = np.dot(np.asarray(list(s[1])), lead_w)
+            if len(s[0])<350:       # modify simultaneously as line 270 of data_structures.py
+                heappush(h, (rel, s[0]))
+
+    most_rel = nlargest(num_sent,h)
+    most_rel_txt = [re.sub('\s+', ' ', sent[1]).strip() for sent in most_rel]
+    return most_rel_txt
+
 
 # main
 if __name__ == '__main__':
@@ -46,13 +72,15 @@ if __name__ == '__main__':
     try:
 
         print "\nConfiguring..."
+        reg_algo = "linear-R"
+        ext_algo = 'greedy'
         read = False
         sum_len = 6
         mt = datetime.datetime.now().month
         d = datetime.datetime.now().day
         h = datetime.datetime.now().hour
         mn = datetime.datetime.now().minute
-        id = str(mt)+"-"+str(d)+"-"+str(h)+"-"+str(mn)
+        id = str(mt)+"-"+str(d)+"-"+str(h)+"-"+str(mn)+"-"+ext_algo+"-"+reg_algo
         d_name = "./results/"+id
 
         print "\nProcessing corpus..."
@@ -75,17 +103,16 @@ if __name__ == '__main__':
         export_time = time.time() - start
 
         print "\nLead, evaluate on crime and drugs..."
-        w = learn_relscore_function(X, y, "lead")
         start = time.time()
-        summ = summarize(cp.collections['d301i'+'2005'], w, 'greedy', sum_len)
+        summ = multi_lead(cp.collections['d301i'+'2005'], sum_len)
         lead_time = time.time() - start
         for s in summ:
             print s.strip()
 
-        print "\nLinear regression, evaluate on crime and drugs..."
-        w = learn_relscore_function(X, y, "linear-reg")
+        print "\nRegression, evaluate on crime and drugs..."
+        w = learn_relevance(X, y, reg_algo)
         start = time.time()
-        summ = summarize(cp.collections['d301i'+'2005'], w, 'greedy', sum_len)
+        summ = summarize(cp.collections['d301i'+'2005'], w, ext_algo, sum_len)
         linreg_time = time.time() - start
         for s in summ:
             print s.strip()
@@ -93,7 +120,7 @@ if __name__ == '__main__':
         print "\nGenerating summaries for test collections"
         os.mkdir(d_name)
         for c in t:
-            summ = summarize(c, w, 'greedy', sum_len)
+            summ = summarize(c, w, ext_algo, sum_len)
             out_file = open(d_name+"/"+c.year+"-"+c.code+".txt","w")
             out_file.write("TOPIC\n")
             out_file.write(c.topic_title)
@@ -124,7 +151,7 @@ if __name__ == '__main__':
         print "Exporting: %f seconds" % export_time
         print "Lead: %f seconds" % lead_time
         print "Lin Reg (train collection): %f seconds" % linreg_time
-        print "Lin Reg (test collection): %f seconds" % linreg_grexit_time
+        #print "Lin Reg (test collection): %f seconds" % linreg_grexit_time
 
     except Exception as e:
 
