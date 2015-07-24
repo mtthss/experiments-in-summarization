@@ -62,7 +62,7 @@ def multi_lead(collection, num_sent):
                 heappush(h, (rel, s[0]))
 
     most_rel = nlargest(num_sent,h)
-    most_rel_txt = [re.sub('\s+', ' ', sent[1]).strip() for sent in most_rel]
+    most_rel_txt = [re.sub('-','',re.sub('\s+', ' ', sent[1])).strip() for sent in most_rel]
     return most_rel_txt
 
 
@@ -72,7 +72,7 @@ if __name__ == '__main__':
     try:
 
         print "\nConfiguring..."
-        reg_algo = "linear-R"
+        reg_algo = "gb-R"
         ext_algo = 'greedy'
         read = False
         sum_len = 6
@@ -95,7 +95,7 @@ if __name__ == '__main__':
         start = time.time()
         if read:
             pk.dump(cp, open("./pickles/corpus.pkl", "wb"))
-        pickle_time = time.time()
+        pickle_time = start-time.time()
 
         print "\nExporting..."
         start = time.time()
@@ -119,6 +119,7 @@ if __name__ == '__main__':
 
         print "\nGenerating summaries for test collections"
         os.mkdir(d_name)
+        start = time.time()
         for c in t:
             summ = summarize(c, w, ext_algo, sum_len)
             out_file = open(d_name+"/"+c.year+"-"+c.code+".txt","w")
@@ -130,18 +131,19 @@ if __name__ == '__main__':
             for s in summ:
                 out_file.write(s+"  ")
             out_file.close()
+        store_test_time = time.time()-start
 
         print "\nLoading Signal test feeds..."
         c = Collection()
         c.read_test_collections("grexit")
         c.process_collection(False)
 
-        print "\nEvaluate on true feed (lin reg)..."
+        print "\nEvaluate on true feed..."
         start = time.time()
         summ = summarize(c, w, 'greedy',sum_len)
         for s in summ:
             print s.strip()
-        linreg_grexit_time = time.time() - start
+        grexit_time = time.time() - start
 
         print "\nWeights..."
         print w
@@ -150,8 +152,9 @@ if __name__ == '__main__':
         print "Pickling: %f seconds" % pickle_time
         print "Exporting: %f seconds" % export_time
         print "Lead: %f seconds" % lead_time
-        print "Lin Reg (train collection): %f seconds" % linreg_time
-        #print "Lin Reg (test collection): %f seconds" % linreg_grexit_time
+        print "Sample train collection: %f seconds" % linreg_time
+        print "Summarize and store, test collections: %f seconds" % store_test_time
+        print "Signal Feed: %f seconds" % grexit_time
 
     except Exception as e:
 
