@@ -91,6 +91,7 @@ class Corpus:
     # export data: X,y = train sentence and score. t = test collections
     def export_data(self):
 
+        start = time.time()
         x_list = []
         y_list = []
         t = []
@@ -108,6 +109,8 @@ class Corpus:
 
         X = np.asarray(x_list)
         y = np.asarray(y_list)
+
+        print "exporting: %f seconds" % (time.time() - start)
         return (X,y,t)
 
 
@@ -326,7 +329,7 @@ if __name__ == '__main__':
     print "read and processed "+str(len(cp.collections))+" collections in: "+str(time.time() - start_time)
 
     print "\ntesting exporting as matrix"
-    (X,y) = cp.export_training_data_regression()
+    (X,y,t) = cp.export_data()
     print "shape of X and y: ", X.shape, y.shape
 
     if False:

@@ -17,6 +17,7 @@ __author__ = 'matteo'
 # summarize a collection
 def summarize(collection, clf, algorithm, num_sent):
 
+    start = time.time()
     h = []
 
     if algorithm=='greedy':
@@ -28,6 +29,7 @@ def summarize(collection, clf, algorithm, num_sent):
 
         most_rel = nlargest(num_sent,h)
         most_rel_txt = [re.sub('\s+', ' ', sent[1]).strip() for sent in most_rel]
+        print "supervised, greedy extraction: %f seconds" % (time.time() - start)
         return most_rel_txt
 
     elif algorithm=='dyn-prog':
@@ -52,6 +54,7 @@ def A_star():
 # summarize a collection
 def multi_lead(collection, num_sent):
 
+    start = time.time()
     h = []
     for d in collection.docs.values():
         for s in d.sent.values():
@@ -63,7 +66,16 @@ def multi_lead(collection, num_sent):
 
     most_rel = nlargest(num_sent,h)
     most_rel_txt = [re.sub('-','',re.sub('\s+', ' ', sent[1])).strip() for sent in most_rel]
+    print "lead: %f seconds" % (time.time() - start)
     return most_rel_txt
+
+# choose best order for a set of extracted sentences
+def reorder(sent_list, algorithm):
+    pass
+
+# process cross sentence references
+def preprocess_crossreferences(corpus):
+    pass
 
 
 # main

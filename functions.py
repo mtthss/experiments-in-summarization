@@ -1,5 +1,7 @@
-import pdb
+import time
+import cPickle as pk
 
+from data_structures import Corpus
 from sklearn.kernel_ridge import KernelRidge
 from sklearn.metrics import mean_squared_error
 from sklearn.tree import DecisionTreeRegressor
@@ -23,21 +25,31 @@ options = {"linear-R" : LinearRegression(fit_intercept=False),
            }
 
 # return partially applied function
-def learn_relevance(X_rel, y, algorithm="svr"):
+def learn_relevance(X_rel, y, algorithm="linear-R"):
+    start = time.time()
     try:
         clf = options[algorithm]
     except:
         raise Exception('Learn score function: Invalid algorithm')
 
     clf.fit (X_rel, y)
+    print "regression: %f seconds" % (time.time() - start)
     print "training error: ", mean_squared_error(y, clf.predict(X_rel))
     return clf
 
-# choose best order for a set of extracted sentences
-def reorder(sent_list, algorithm):
-    pass
+# load corpus
+def load(read):
+    start = time.time()
+    if read:
+        cp = Corpus(17)
+    else:
+        cp = pk.load(open("./pickles/corpus.pkl", "rb" ))
+    print "processing: %f seconds" % (time.time() - start)
+    start = time.time()
+    if read:
+        pk.dump(cp, open("./pickles/corpus.pkl", "wb"))
+        print "pickling: %f seconds" % (start - time.time())
+    return cp
 
-# process cross sentence references
-def preprocess_crossreferences(corpus):
-    pass
+
 
