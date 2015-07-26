@@ -28,7 +28,7 @@ def summarize(collection, clf, algorithm, num_sent):
                     heappush(h, (rel, s[0]))
 
         most_rel = nlargest(num_sent,h)
-        most_rel_txt = [re.sub('\s+', ' ', sent[1]).strip() for sent in most_rel]
+        most_rel_txt = [re.sub('-','',re.sub('\s+', ' ', sent[1])).strip() for sent in most_rel]
         print "supervised, greedy extraction: %f seconds" % (time.time() - start)
         return most_rel_txt
 

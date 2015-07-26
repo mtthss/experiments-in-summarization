@@ -1,43 +1,38 @@
 import os
 import pdb
 import time
-import datetime
 
-from data_structures import Corpus, Collection
+from data_structures import Collection
 from summarizers import multi_lead, summarize
-from functions import learn_relevance, load
+from functions import learn_relevance, load, gen_name, plot_summary
+
 
 __author__ = 'matteo'
 
 
-try:
-    print "\nConfiguring..."
-    reg_algo = "gb-R"
-    ext_algo = 'greedy'
-    read = False
-    human_inspect = False
-    sum_len = 6
-    mt = datetime.datetime.now().month
-    d = datetime.datetime.now().day
-    h = datetime.datetime.now().hour
-    mn = datetime.datetime.now().minute
-    id = str(mt)+"-"+str(d)+"-"+str(h)+"-"+str(mn)+"-"+ext_algo+"-"+reg_algo
-    d_name = "./results/"+id
+print "\nConfiguring..."
+reg_algo = "rf-R"
+ext_algo = 'greedy'
+read = False
+human_inspect = False
+store_test = False
+sum_len = 6
+d_name = gen_name(ext_algo, reg_algo)
 
-    print "\nTesting..."
-    cp = load(read)
-    (X, y, t) = cp.export_data()
-    w = learn_relevance(X, y, reg_algo)
+print "\nLearn..."
+cp = load(read)
+(X, y, t) = cp.export_data()
+w = learn_relevance(X, y, reg_algo)
 
-    sample_lead = multi_lead(cp.collections['d301i'+'2005'], sum_len)
-    sample_regr = summarize(cp.collections['d301i'+'2005'], w, ext_algo, sum_len)
+print "\nGenerate..."
+sample_lead = multi_lead(cp.collections['d301i'+'2005'], sum_len)
+sample_regr = summarize(cp.collections['d301i'+'2005'], w, ext_algo, sum_len)
 
-    print "\nPrint sample lead followed by sample regression:\n"
-    for s in sample_lead:
-        print s.strip()
-    for s in sample_regr:
-        print s.strip()
+print "\nPrint sample lead followed by sample regression:"
+plot_summary(sample_lead)
+plot_summary(sample_regr)
 
+if store_test:
     print "\nGenerating summaries for test collections"
     os.mkdir(d_name)
     start = time.time()
@@ -55,17 +50,10 @@ try:
         out_file.close()
     print "summarize and store, test collections: %f seconds" % (time.time()-start)
 
-    print "\nEvaluate on true feed..."
-    c = Collection()
-    c.read_test_collections("grexit")
-    c.process_collection(False)
-    start = time.time()
-    summ = summarize(c, w, 'greedy',sum_len)
-    for s in summ:
-        print s.strip()
-    print "signal feed: %f seconds" % (time.time() - start)
+print "\nEvaluate on true feed..."
+c = Collection()
+c.read_test_collections("grexit")
+c.process_collection(False)
+summ = summarize(c, w, 'greedy',sum_len)
+plot_summary(summ)
 
-except Exception as e:
-
-    print e
-    pdb.set_trace()
