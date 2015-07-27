@@ -16,7 +16,7 @@ ext_algo = 'greedy'
 read = False
 human_inspect = False
 store_test = False
-sum_len = 6
+sum_len = 9
 d_name = gen_name(ext_algo, reg_algo)
 
 print "\nLearn..."
@@ -49,6 +49,8 @@ if store_test:
             out_file.write(s+"\n")
         out_file.close()
     print "summarize and store, test collections: %f seconds" % (time.time()-start)
+
+exit()
 
 print "\nEvaluate on true feed..."
 c = Collection()

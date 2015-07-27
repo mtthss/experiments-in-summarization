@@ -124,6 +124,8 @@ class Collection:
 
         self.topic_title = -1   # keywords / topic title
         self.topic_descr = -1   # description of expected content
+        self.title_vsv = None   # title vector
+        self.desc_vsv = None    # description vector
         self.docs = {}          # documents to summarize: {id: document-object}
 
         self.cv = None          # count-vectorizer on whole collection
@@ -179,8 +181,10 @@ class Collection:
         # process with count vectorizer
         try:
             self.cv = CountVectorizer(analyzer="word",stop_words=cachedStopWords,preprocessor=clean,max_features=5000,lowercase=True)
-            self.doc_BoW = self.cv.fit_transform(texts+hls)
+            self.doc_BoW = self.cv.fit_transform(texts+hls+[self.topic_title, self.topic_descr])
             self.ref_BoW = self.cv.transform([c for c in self.ref_dict.values()])
+            self.title_vsv = self.cv.transform(self.topic_title)
+            self.desc_vsv = self.cv.transform(self.topic_descr)
         except:
             pdb.set_trace()
 
@@ -301,12 +305,20 @@ class Document:
         # PR = tag_fd.freq("PRON")
         # AD = tag_fd.freq("ADJ")
 
+        CT = 1 - spatial.distance.cosine(self.hl_vsv_1.toarray(), self.father.cv.transform([s]).toarray())
+        Q = 1 - spatial.distance.cosine(self.hl_vsv_1.toarray(), self.father.cv.transform([s]).toarray())
         VS1 = 1 - spatial.distance.cosine(self.hl_vsv_1.toarray(), self.father.cv.transform([s]).toarray())
         if math.isnan(VS1):
             VS1 = 0
             print self.father.code, self.id
+        if math.isnan(CT):
+            CT = 0
+            print self.father.code, self.id
+        if math.isnan(Q):
+            Q = 0
+            print self.father.code, self.id
 
-        return (P, F5, LEN, LM, VS1, VB, NN)
+        return (P, F5, LEN, LM, VS1, VB, NN, CT, Q)
 
     # score sentence wrt reference summaries (svr)
     def compute_score(self, sentence, method):
