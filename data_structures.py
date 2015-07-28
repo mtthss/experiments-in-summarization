@@ -98,7 +98,7 @@ class Corpus:
         count = 1
 
         for c in self.collections.values():
-            if count%6 == 0:
+            if count%5 == 0:
                 t.append(c)
             else:
                 for d in c.docs.values():

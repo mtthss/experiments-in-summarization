@@ -24,11 +24,15 @@ cp = load(read)
 (X, y, t) = cp.export_data()
 w = learn_relevance(X, y, reg_algo)
 
+print "\nInfo..."
+print "train shape: ", X.shape
+print "number of test collections: ", len(t)
+
 print "\nGenerate..."
 sample_lead = multi_lead(cp.collections['d301i'+'2005'], sum_len)
 sample_regr = summarize(cp.collections['d301i'+'2005'], w, ext_algo, sum_len)
 
-print "\nPrint sample lead followed by sample regression:"
+print "\nPrinting sample lead / regression..."
 plot_summary(sample_lead)
 plot_summary(sample_regr)
 
