@@ -302,8 +302,6 @@ class Document:
         tag_fd = FreqDist(map_tag("en-ptb", "universal",tag) if map_tag("en-ptb", "universal",tag) not in cachedStopPOStags else "OTHER" for (word, tag) in pos_tagger(tok_sent))
         NN = tag_fd.freq("NOUN")
         VB = tag_fd.freq("VERB")
-        # PR = tag_fd.freq("PRON")
-        # AD = tag_fd.freq("ADJ")
 
         CT = 1 - spatial.distance.cosine(self.hl_vsv_1.toarray(), self.father.cv.transform([s]).toarray())
         Q = 1 - spatial.distance.cosine(self.hl_vsv_1.toarray(), self.father.cv.transform([s]).toarray())
