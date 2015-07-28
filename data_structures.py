@@ -70,7 +70,7 @@ class Corpus:
             for code in os.listdir(col_path+"/"+year):
                 if (code!="duc2005_topics.sgml") and (code!="duc2006_topics.sgml") and (code not in ["d408c", "d671g", "d442g"]):
                     path_list.append((year, code))
-                    if test_mode and count>20:
+                    if test_mode and count>10:
                         break
                     count += 1
 
@@ -284,7 +284,7 @@ class Document:
                 continue
 
             s1 = self.compute_score(s,"basic") if score else 0
-            #s2 = self.compute_score(s,"vsm")  if score else 0
+            s2 = self.compute_score(s,"vsm")  if score else 0
             #s3 = self.compute_score(s,"n-rouge")  if score else 0
             self.sent[count] = (s, self.compute_features(s, count), s1)
             count += 1

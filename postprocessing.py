@@ -1,7 +1,7 @@
 import os
 import csv
 
-from csv import reader
+from csv import reader, writer
 
 
 __author__ = 'matteo'
@@ -48,18 +48,24 @@ for filename in os.listdir(path_in):
                 dict[year+"-"+system].append([float(avg_recall),float(avg_precision), float(avg_fscore)])
 
 # print system evaluations
-for key in dict.keys():
+with open('./evals/summary/output.csv', 'wb') as csv:
 
-    matrix = dict[key]
-    if len(matrix)>0:
+    write_out = writer(csv, delimiter = ',')
+    write_out.writerow(['System', 'MAR', 'MAP', 'MAF'])
 
-        recalls = [element[0] for element in matrix]
-        precisions = [element[1] for element in matrix]
-        fscores = [element[2] for element in matrix]
+    for key in dict.keys():
 
-        mean_avg_recall = sum(recalls)/len(recalls)
-        mean_avg_precision = sum(precisions)/len(precisions)
-        mean_avg_fscore = sum(fscores)/len(fscores)
+        matrix = dict[key]
+        if len(matrix)>0:
 
-        name = key if len(key)==7 else key+" "
-        print name, "\t", mean_avg_recall, mean_avg_precision, mean_avg_fscore
+            recalls = [element[0] for element in matrix]
+            precisions = [element[1] for element in matrix]
+            fscores = [element[2] for element in matrix]
+
+            mean_avg_recall = sum(recalls)/len(recalls)
+            mean_avg_precision = sum(precisions)/len(precisions)
+            mean_avg_fscore = sum(fscores)/len(fscores)
+
+            write_out.writerow([key, mean_avg_recall, mean_avg_precision, mean_avg_fscore])
+            name = key if len(key)==7 else key+" "
+            # print name, "\t", mean_avg_recall, mean_avg_precision, mean_avg_fscore
