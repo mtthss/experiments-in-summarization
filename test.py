@@ -16,7 +16,7 @@ ext_algo = 'greedy'
 read = False
 human_inspect = False
 store_test = False
-sum_len = 9
+sum_len = 8
 d_name = gen_name(ext_algo, reg_algo)
 
 print "\nLearn..."
