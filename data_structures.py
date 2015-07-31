@@ -126,6 +126,8 @@ class Collection:
         self.topic_descr = -1   # description of expected content
         self.title_vsv = None   # title vector
         self.desc_vsv = None    # description vector
+        self.title_tfidf = None # tfidf title vector
+        self.desc_tfidf = None  # tfidf description vector
         self.docs = {}          # documents to summarize: {id: document-object}
 
         self.cv = None          # count-vectorizer on whole collection
@@ -183,8 +185,10 @@ class Collection:
             self.cv = CountVectorizer(analyzer="word",stop_words=cachedStopWords,preprocessor=clean,max_features=5000,lowercase=True)
             self.doc_BoW = self.cv.fit_transform(texts+hls+[self.topic_title, self.topic_descr])
             self.ref_BoW = self.cv.transform([c for c in self.ref_dict.values()])
-            self.title_vsv = self.cv.transform(self.topic_title)
-            self.desc_vsv = self.cv.transform(self.topic_descr)
+            self.title_vsv = self.cv.transform([self.topic_title])
+            self.desc_vsv = self.cv.transform([self.topic_descr])
+            self.tv = TfidfVectorizer(max_features=5000)
+            self.doc_tfidf = self.tv.fit_transform(texts+hls+[self.topic_title, self.topic_descr])
         except:
             pdb.set_trace()
 
@@ -268,6 +272,7 @@ class Document:
         self.id = my_id                                     # doc number
 
         self.hl_vsv_1 = None                                # vector space representation uni-grams
+        self.hl_tfidf = None                                # tfidf vector representation
         self.sent = {}                                      # {sentence-position: (raw_text, features, rel-score)
 
     # compute features and if requested score sentences wrt references
@@ -275,6 +280,7 @@ class Document:
 
         # compute headline features
         self.hl_vsv_1 = self.father.cv.transform([self.headline])
+        self.hl_tfidf = self.father.tv.transform([self.headline])
 
         # compute sentence features
         count = 1
@@ -292,20 +298,32 @@ class Document:
     # compute sentence features
     def compute_features(self, s, count):
 
+        # preprocess
         tok_sent = nltk.tokenize.word_tokenize(s)
         stop_tok_sent = [x for x in tok_sent if x not in cachedStopWords]
 
+        # location features
         P = 1.0/count
         F5 = 1 if count <=5 else 0
         LEN = len(stop_tok_sent)/30.0
+
+        # language modelling
         LM = LModel.score(s)
+
+        # pos tagging features
         tag_fd = FreqDist(map_tag("en-ptb", "universal",tag) if map_tag("en-ptb", "universal",tag) not in cachedStopPOStags else "OTHER" for (word, tag) in pos_tagger(tok_sent))
         NN = tag_fd.freq("NOUN")
         VB = tag_fd.freq("VERB")
 
-        CT = 1 - spatial.distance.cosine(self.hl_vsv_1.toarray(), self.father.cv.transform([s]).toarray())
-        Q = 1 - spatial.distance.cosine(self.hl_vsv_1.toarray(), self.father.cv.transform([s]).toarray())
+        # headline-sentence similarity
         VS1 = 1 - spatial.distance.cosine(self.hl_vsv_1.toarray(), self.father.cv.transform([s]).toarray())
+        #TFIDF = 1 - spatial.distance.cosine(self.hl_tfidf.toarray(), self.father.tv.transform([s]).toarray())
+
+        # topic description-sentence similarity
+        CT = 1 - spatial.distance.cosine(self.father.desc_vsv.toarray(), self.father.cv.transform([s]).toarray())
+        Q = 1 - spatial.distance.cosine(self.father.title_vsv.toarray(), self.father.cv.transform([s]).toarray())
+
+        # security checks
         if math.isnan(VS1):
             VS1 = 0
             print self.father.code, self.id
@@ -316,6 +334,7 @@ class Document:
             Q = 0
             print self.father.code, self.id
 
+        # active features
         return (P, F5, LEN, LM, VS1, VB, NN, CT, Q)
 
     # score sentence wrt reference summaries (svr)
@@ -335,7 +354,7 @@ if __name__ == '__main__':
 
     print "\ntesting corpus class..."
     start_time = time.time()
-    cp = Corpus(16)
+    cp = Corpus(13)
     print "read and processed "+str(len(cp.collections))+" collections in: "+str(time.time() - start_time)
 
     print "\ntesting exporting as matrix"
