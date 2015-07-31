@@ -49,11 +49,10 @@ if rivals:
         content = open(path_in+filename, 'r').read()
         code = filename.split(".")
 
-        if (code[0]+code[3]).lower() in test_refs:
+        if (code[0]+code[3]).lower() in test_refs_low:
 
             new_name = (code[0]+code[3]+"_"+code[4]).lower()
             out_file = open(path_out+new_name, "w")
 
             out_file.write(content)
             out_file.close()
-
