@@ -1,8 +1,10 @@
 import time
+import nltk
 import datetime
 import numpy as np
 import cPickle as pk
 
+from scipy import spatial
 from data_structures import Corpus
 from sklearn.kernel_ridge import KernelRidge
 from sklearn.metrics import mean_squared_error
@@ -16,7 +18,7 @@ __author__ = 'matteo'
 
 
 # available relevance regressors
-options = {"linear-R" : LinearRegression(fit_intercept=False),                      # ! MEDIUM-GOOD
+c_options = {"linear-R" : LinearRegression(fit_intercept=False),                      # ! MEDIUM-GOOD
            "kernel-RR": KernelRidge(kernel='rbf', gamma=0.1),                       # MEMORY ERROR
            "bayes-RR" : BayesianRidge(fit_intercept=False, compute_score=True),     # EQ. to linear-R
            "rf-R": RandomForestRegressor(n_estimators=30),                          # ! VERY GOOD
@@ -29,7 +31,7 @@ options = {"linear-R" : LinearRegression(fit_intercept=False),                  
 def learn_relevance(X_rel, y, algorithm="linear-R"):
     start = time.time()
     try:
-        clf = options[algorithm]
+        clf = c_options[algorithm]
     except:
         raise Exception('Learn score function: Invalid algorithm')
     clf.fit (X_rel, y)
@@ -51,6 +53,7 @@ def load(read):
         print "pickling: %f seconds" % (start - time.time())
     return cp
 
+# gen directory name for storing purposes
 def gen_name(ext_algo, reg_algo):
     mt = datetime.datetime.now().month
     d = datetime.datetime.now().day
@@ -59,7 +62,41 @@ def gen_name(ext_algo, reg_algo):
     id = str(mt)+"-"+str(d)+"-"+str(h)+"-"+str(mn)+"-"+ext_algo+"-"+reg_algo
     return "./results/"+id
 
+# print summary to std output
 def plot_summary(s):
     print ""
     for s in s:
         print s.strip()
+
+# compute redundancy between sentences using simple word match
+def simple_red(s1, s2):
+    ls1 = nltk.tokenize.word_tokenize(s1)
+    ls2 = nltk.tokenize.word_tokenize(s2)
+    return len([val for val in ls1 if val in ls2])/((len(ls1)+len(ls2))/2.0)
+
+# compute redundancy between sentences using neural embeddings
+def distrib_red(s1, s2, method, model=None):
+    ls1 = nltk.tokenize.word_tokenize(s1)
+    ls2 = nltk.tokenize.word_tokenize(s2)
+    if method == "w2v":
+        v1 = np.zeros((1,300))
+        v2 = np.zeros((1,300))
+        for w in ls1:
+            try: v1 += model[w]
+            except: pass
+        for w in ls2:
+            try: v2 += model[w]
+            except: pass
+        try:
+            red = 1 - spatial.distance.cosine(v1, v2)
+        except Exception as e:
+            print e
+            red = 0
+        return red
+
+    elif method == "cnn":
+        print "not yet available"
+    elif method == "lstm":
+        print "not yet available"
+    else:
+        raise Exception('Redundancy: Invalid algorithm')

@@ -3,7 +3,8 @@ import pdb
 import time
 
 from data_structures import Collection
-from summarizers import multi_lead, summarize
+from gensim.models.word2vec import Word2Vec
+from summarizers import multi_lead, rel_summarize, mmr_summarize, summarize
 from functions import learn_relevance, load, gen_name, plot_summary
 
 
@@ -13,11 +14,18 @@ __author__ = 'matteo'
 print "\nConfiguring..."
 reg_algo = "rf-R"
 ext_algo = 'greedy'
+red_algo = 'basic'
 read = False
 human_inspect = False
 store_test = False
-sum_len = 8
+word_len = 250
+max_sent = 20
 d_name = gen_name(ext_algo, reg_algo)
+
+if red_algo=='w2v':
+    print '\nLoading w2v model...'
+    w2v_path = "../sentiment-mining-for-movie-reviews/Data/GoogleNews-vectors-negative300.bin"
+    model = Word2Vec.load_word2vec_format(w2v_path, binary=True)  # C binary format
 
 print "\nLearn..."
 cp = load(read)
@@ -29,23 +37,27 @@ print "train shape: ", X.shape
 print "number of test collections: ", len(t)
 
 print "\nGenerate..."
-sample_lead = multi_lead(cp.collections['d301i'+'2005'], sum_len)
-sample_regr = summarize(cp.collections['d301i'+'2005'], w, ext_algo, sum_len)
+sample_lead_1 = multi_lead(cp.collections['d301i'+'2005'], word_len, max_sent)
+sample_lead_2 = multi_lead(cp.collections['D0601A'+'2006'], word_len, max_sent)
+sample_regr = rel_summarize(cp.collections['d301i'+'2005'], w, word_len, max_sent)
+old_regr = summarize(cp.collections['d301i'+'2005'], w, ext_algo, 8)
 
 print "\nPrinting sample lead / regression..."
-plot_summary(sample_lead)
+plot_summary(sample_lead_1)
+plot_summary(sample_lead_2)
 plot_summary(sample_regr)
+plot_summary(old_regr)
 
 if store_test:
     print "\nGenerating summaries for test collections"
     os.mkdir(d_name)
     start = time.time()
     for c in t:
-        summ = summarize(c, w, ext_algo, sum_len)
+        summ = rel_summarize(c, w, ext_algo, sum_len)
         out_file = open(d_name+"/"+c.code.lower()+"_"+reg_algo,"w")
         if human_inspect:
             out_file.write("TOPIC\n")
-            out_file.write(c.topic_title)
+            out_file.write(c.code+"; "+c.topic_title)
             out_file.write("\n\nDESCRIPTION\n")
             out_file.write(c.topic_descr)
             out_file.write("\n\nSUMMARY\n")
@@ -60,6 +72,6 @@ print "\nEvaluate on true feed..."
 c = Collection()
 c.read_test_collections("grexit")
 c.process_collection(False)
-summ = summarize(c, w, 'greedy',sum_len)
+summ = rel_summarize(c, w, 'greedy',sum_len)
 plot_summary(summ)
 
