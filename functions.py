@@ -27,7 +27,6 @@ c_options = {"linear-R" : LinearRegression(fit_intercept=False),                
            "bayes-RR" : BayesianRidge(fit_intercept=False, compute_score=True),     # EQ. to linear-R
            "rf-R": RandomForestRegressor(n_estimators=30),                          # ! VERY GOOD
            "gb-R": GradientBoostingRegressor(n_estimators=30),                      # ! MEDIUM-GOOD
-           "gauss-PR": GaussianProcess(theta0=1e-2, thetaL=1e-4, thetaU=1e-1),      # MEMORY ERROR
            "decision-T": DecisionTreeRegressor(max_depth=2)                         # ! VERY GOOD
            }
 
