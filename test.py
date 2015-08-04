@@ -1,10 +1,9 @@
 import os
-import pdb
 import time
 
 from data_structures import Collection
 from gensim.models.word2vec import Word2Vec
-from summarizers import multi_lead, rel_summarize, mmr_summarize, summarize
+from summarizers import multi_lead, rel_summarize, mmr_summarize
 from functions import learn_relevance, load, gen_name, plot_summary
 
 
@@ -12,15 +11,16 @@ __author__ = 'matteo'
 
 
 print "\nConfiguring..."
-reg_algo = "rf-R"
 ext_algo = 'greedy'
-red_algo = 'basic'
+reg_algo = 'rf-R'
+red_algo = 'uni_cos_red'
 read = False
 human_inspect = False
 store_test = False
 word_len = 250
 max_sent = 20
-d_name = gen_name(ext_algo, reg_algo)
+tradeoff = 0.2
+d_name = gen_name(ext_algo, reg_algo, red_algo)
 
 if red_algo=='w2v':
     print '\nLoading w2v model...'
@@ -40,20 +40,20 @@ print "\nGenerate..."
 sample_lead_1 = multi_lead(cp.collections['d301i'+'2005'], word_len, max_sent)
 sample_lead_2 = multi_lead(cp.collections['D0601A'+'2006'], word_len, max_sent)
 sample_regr = rel_summarize(cp.collections['d301i'+'2005'], w, word_len, max_sent)
-old_regr = summarize(cp.collections['d301i'+'2005'], w, ext_algo, 8)
+sample_mmr = mmr_summarize(cp.collections['d301i'+'2005'], w, ext_algo, red_algo, word_len, max_sent, tradeoff)
 
 print "\nPrinting sample lead / regression..."
 plot_summary(sample_lead_1)
 plot_summary(sample_lead_2)
 plot_summary(sample_regr)
-plot_summary(old_regr)
+plot_summary(sample_mmr)
 
 if store_test:
     print "\nGenerating summaries for test collections"
     os.mkdir(d_name)
     start = time.time()
     for c in t:
-        summ = rel_summarize(c, w, ext_algo, sum_len)
+        summ = rel_summarize(c, w, word_len, max_sent)
         out_file = open(d_name+"/"+c.code.lower()+"_"+reg_algo,"w")
         if human_inspect:
             out_file.write("TOPIC\n")

@@ -5,11 +5,13 @@ import numpy as np
 import cPickle as pk
 
 from scipy import spatial
+from nltk.corpus import stopwords
 from data_structures import Corpus
 from sklearn.kernel_ridge import KernelRidge
 from sklearn.metrics import mean_squared_error
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.gaussian_process import GaussianProcess
+from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.linear_model import LinearRegression, BayesianRidge
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 
@@ -17,7 +19,9 @@ from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 __author__ = 'matteo'
 
 
-# available relevance regressors
+#initialize objects
+cachedStopWords = stopwords.words("english")
+cv = CountVectorizer(analyzer="word",stop_words=cachedStopWords,preprocessor=None,lowercase=True)
 c_options = {"linear-R" : LinearRegression(fit_intercept=False),                      # ! MEDIUM-GOOD
            "kernel-RR": KernelRidge(kernel='rbf', gamma=0.1),                       # MEMORY ERROR
            "bayes-RR" : BayesianRidge(fit_intercept=False, compute_score=True),     # EQ. to linear-R
@@ -54,12 +58,12 @@ def load(read):
     return cp
 
 # gen directory name for storing purposes
-def gen_name(ext_algo, reg_algo):
+def gen_name(ext_algo, reg_algo, red_algo):
     mt = datetime.datetime.now().month
     d = datetime.datetime.now().day
     h = datetime.datetime.now().hour
     mn = datetime.datetime.now().minute
-    id = str(mt)+"-"+str(d)+"-"+str(h)+"-"+str(mn)+"-"+ext_algo+"-"+reg_algo
+    id = str(mt)+"-"+str(d)+"-"+str(h)+"-"+str(mn)+"-"+ext_algo+"-"+reg_algo+"-"+red_algo
     return "./results/"+id
 
 # print summary to std output
@@ -73,6 +77,12 @@ def simple_red(s1, s2):
     ls1 = nltk.tokenize.word_tokenize(s1)
     ls2 = nltk.tokenize.word_tokenize(s2)
     return len([val for val in ls1 if val in ls2])/((len(ls1)+len(ls2))/2.0)
+
+# unigram cosine similarity
+def uni_cos_red(s, summ):
+    vectors = cv.fit_transform([" ".join(summ), s])
+    red = 1 - spatial.distance.cosine(vectors[0].toarray(), vectors[1].toarray())
+    return red
 
 # compute redundancy between sentences using neural embeddings
 def distrib_red(s1, s2, method, model=None):
