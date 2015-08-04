@@ -16,9 +16,9 @@ reg_algo = 'rf-R'
 red_algo = 'uni_cos_red'
 read = False
 human_inspect = False
-store_test = False
+store_test = True
 word_len = 250
-max_sent = 20
+max_sent = 200
 tradeoff = 0.2
 d_name = gen_name(ext_algo, reg_algo, red_algo)
 
@@ -53,8 +53,10 @@ if store_test:
     os.mkdir(d_name)
     start = time.time()
     for c in t:
-        summ = rel_summarize(c, w, word_len, max_sent)
-        out_file = open(d_name+"/"+c.code.lower()+"_"+reg_algo,"w")
+        #summ = rel_summarize(c, w, word_len, max_sent)
+        #out_file = open(d_name+"/"+c.code.lower()+"_"+reg_algo,"w")
+        summ = mmr_summarize(c, w, ext_algo, red_algo, word_len, max_sent, tradeoff)
+        out_file = open(d_name+"/"+c.code.lower()+"_"+reg_algo+"-mmr","w")
         if human_inspect:
             out_file.write("TOPIC\n")
             out_file.write(c.code+"; "+c.topic_title)
@@ -72,6 +74,6 @@ print "\nEvaluate on true feed..."
 c = Collection()
 c.read_test_collections("grexit")
 c.process_collection(False)
-summ = rel_summarize(c, w, 'greedy',sum_len)
+summ = rel_summarize(c, w, word_len, max_sent)
 plot_summary(summ)
 

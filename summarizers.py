@@ -1,9 +1,10 @@
 import re
+import pdb
 import time
 import numpy as np
 
 from functions import simple_red, uni_cos_red
-from heapq import heappush, heapify, heappop
+from heapq import heappush, heapify, heappop, nsmallest
 
 
 __author__ = 'matteo'
@@ -46,7 +47,10 @@ def rel_summarize(collection, clf, num_words, max_sent):
     cw = cs = 0
     most_rel = []
     while cw<num_words and cs<max_sent:
-        cand = heappop(h)
+        try:
+            cand = heappop(h)
+        except:
+            pdb.set_trace()
         add = len(cand[1].split())
         if (cw + add)<num_words:
             most_rel.append(re.sub('-',' ',re.sub('\s+', ' ', cand[1])).strip())
@@ -69,6 +73,7 @@ def mmr_summarize(collection, clf, ext_algo, red_algo, num_words, max_sent, trad
                 if len(s[0])<350:       # modify simultaneously as line 270 of data_structures.py
                     heappush(h, (-1*tradeoff*rel, s[0]))
                     dict[s[0]]= rel
+        h = nsmallest(max_sent, h)
         cs = 1
         cw = 0
         flag = False
