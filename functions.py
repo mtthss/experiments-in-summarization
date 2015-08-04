@@ -66,6 +66,7 @@ def gen_name(ext_algo, reg_algo, red_algo):
     id = str(mt)+"-"+str(d)+"-"+str(h)+"-"+str(mn)+"-"+ext_algo+"-"+reg_algo+"-"+red_algo
     return "./results/"+id
 
+#
 # print summary to std output
 def plot_summary(s):
     print ""
