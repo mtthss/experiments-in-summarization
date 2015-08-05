@@ -10,7 +10,6 @@ from data_structures import Corpus
 from sklearn.kernel_ridge import KernelRidge
 from sklearn.metrics import mean_squared_error
 from sklearn.tree import DecisionTreeRegressor
-from sklearn.gaussian_process import GaussianProcess
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.linear_model import LinearRegression, BayesianRidge
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
@@ -23,11 +22,11 @@ __author__ = 'matteo'
 cachedStopWords = stopwords.words("english")
 cv = CountVectorizer(analyzer="word",stop_words=cachedStopWords,preprocessor=None,lowercase=True)
 c_options = {"linear-R" : LinearRegression(fit_intercept=False),                      # ! MEDIUM-GOOD
-           "kernel-RR": KernelRidge(kernel='rbf', gamma=0.1),                       # MEMORY ERROR
-           "bayes-RR" : BayesianRidge(fit_intercept=False, compute_score=True),     # EQ. to linear-R
+           "kernelRR": KernelRidge(kernel='rbf', gamma=0.1),                       # MEMORY ERROR
+           "bayesRR" : BayesianRidge(fit_intercept=False, compute_score=True),     # EQ. to linear-R
            "rf-R": RandomForestRegressor(n_estimators=30),                          # ! VERY GOOD
-           "gb-R": GradientBoostingRegressor(n_estimators=30),                      # ! MEDIUM-GOOD
-           "decision-T": DecisionTreeRegressor(max_depth=2)                         # ! VERY GOOD
+           "gbR": GradientBoostingRegressor(n_estimators=30),                      # ! MEDIUM-GOOD
+           "decisionT": DecisionTreeRegressor(max_depth=2)                         # ! VERY GOOD
            }
 
 # return partially applied function
@@ -57,12 +56,17 @@ def load(read):
     return cp
 
 # gen directory name for storing purposes
-def gen_name(ext_algo, reg_algo, red_algo):
+def gen_name(ext_algo, reg_algo, red_algo, sum_algo):
     mt = datetime.datetime.now().month
     d = datetime.datetime.now().day
     h = datetime.datetime.now().hour
     mn = datetime.datetime.now().minute
-    id = str(mt)+"-"+str(d)+"-"+str(h)+"-"+str(mn)+"-"+ext_algo+"-"+reg_algo+"-"+red_algo
+    if sum_algo=="lead":
+        id = str(mt)+"-"+str(d)+"-"+str(h)+"-"+str(mn)+"-"+sum_algo
+    elif sum_algo=="rel":
+        id = str(mt)+"-"+str(d)+"-"+str(h)+"-"+str(mn)+"-"+ext_algo+"-"+reg_algo+"-"+sum_algo
+    else:
+        id = str(mt)+"-"+str(d)+"-"+str(h)+"-"+str(mn)+"-"+ext_algo+"-"+reg_algo+"-"+sum_algo+"-"+red_algo
     return "./results/"+id
 
 #

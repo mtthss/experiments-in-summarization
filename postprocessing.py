@@ -14,7 +14,11 @@ path_out = "./evals/summary/"
 
 # test collections
 test = []
-my_candidates = ["RF-R-MMR", "RF-R"]
+my_candidates = ["LEAD",                                                # multi-lead
+                 "RF-R-REL", "LINEAR-R-REL", "DECISIONT-REL",           # relevance
+                 "LINEAR-R-MMR-SIMPLERED",  "LINEAR-R-MMR-UNICOSRED",   # mmr linear regression
+                 "RF-R-MMR-SIMPLERED",      "RF-R-MMR-UNICOSRED",       # mmr random forests
+                 "DECISIONT-MMR-SIMPLERED", "DECISIONT-MMR-UNICOSRED"]  # mmr decision trees
 
 # initialize dictionary
 dict = {}

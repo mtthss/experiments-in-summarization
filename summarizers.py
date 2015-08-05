@@ -104,7 +104,7 @@ def mmr_summarize(collection, clf, ext_algo, red_algo, num_words, max_sent, trad
 # update overall score of each sentences according to the given redundancy measure
 def evaluate_redundancy(c, d, summ, tradeoff, red_algo):
 
-    if red_algo=="simple_red":
+    if red_algo=="simpleRed":
         for i in xrange(len(c)):
             s = c[i][1]
             t = summ[-1]
@@ -115,7 +115,7 @@ def evaluate_redundancy(c, d, summ, tradeoff, red_algo):
             old_red_sum = (prev_score-rel)*(k-1)
             update = (old_red_sum + red)/k
             c[i] = (rel + update, s)
-    elif red_algo=="uni_cos_red":
+    elif red_algo=="uniCosRed":
         for i in xrange(len(c)):
             c[i] = (-1*tradeoff*d[c[i][1]] + (1-tradeoff)*uni_cos_red(c[i][1], summ), c[i][1])
     else:
