@@ -1,4 +1,5 @@
 import os
+import pdb
 import time
 
 from data_structures import Collection
@@ -11,7 +12,19 @@ __author__ = 'matteo'
 
 
 # evaluate given configuration
-def evaluate_config(ext_algo, reg_algo, sum_algo, red_algo, tradeoff, word_len, max_sent):
+def evaluate_config(ext_algo, reg_algo, sum_algo, red_algo, tradeoff, word_len, max_sent, f):
+
+    features = []
+    for i in f.keys():
+        if f[i][1]==True:
+            features.append(f[i][0])
+    features = "-".join(features)
+
+    idx = []
+    for x in f.keys():
+        if f[x][1]==True:
+            idx.append(x)
+    idx = sorted(idx)
 
     d_name = gen_name(ext_algo, reg_algo, red_algo, sum_algo)
 
@@ -22,7 +35,7 @@ def evaluate_config(ext_algo, reg_algo, sum_algo, red_algo, tradeoff, word_len, 
 
     print "\nLearn..."
     cp = load(read)
-    (X, y, t) = cp.export_data()
+    (X, y, t) = cp.export_data(f)
     w = learn_relevance(X, y, reg_algo)
 
     print "\nInfo..."
@@ -32,8 +45,8 @@ def evaluate_config(ext_algo, reg_algo, sum_algo, red_algo, tradeoff, word_len, 
     print "\nGenerate..."
     sample_lead_1 = multi_lead(cp.collections['d301i'+'2005'], word_len, max_sent)
     sample_lead_2 = multi_lead(cp.collections['D0601A'+'2006'], word_len, max_sent)
-    sample_regr = rel_summarize(cp.collections['d301i'+'2005'], w, word_len, max_sent)
-    sample_mmr = mmr_summarize(cp.collections['d301i'+'2005'], w, ext_algo, red_algo, word_len, max_sent, tradeoff)
+    sample_regr = rel_summarize(cp.collections['d301i'+'2005'], w, word_len, max_sent, idx)
+    sample_mmr = mmr_summarize(cp.collections['d301i'+'2005'], w, ext_algo, red_algo, word_len, max_sent, tradeoff, idx)
 
     print "\nPrinting sample lead / regression..."
     plot_summary(sample_lead_1)
@@ -57,10 +70,10 @@ def evaluate_config(ext_algo, reg_algo, sum_algo, red_algo, tradeoff, word_len, 
                 summ = multi_lead(c, word_len, max_sent)
                 out_file = open(d_name+"/"+c.code.lower()+"_"+sum_algo,"w")
             elif sum_algo == 'rel':
-                summ = rel_summarize(c, w, word_len, max_sent)
+                summ = rel_summarize(c, w, word_len, max_sent, idx)
                 out_file = open(d_name+"/"+c.code.lower()+"_"+reg_algo+"-"+sum_algo,"w")
             elif sum_algo == 'mmr':
-                summ = mmr_summarize(c, w, ext_algo, red_algo, word_len, max_sent, tradeoff)
+                summ = mmr_summarize(c, w, ext_algo, red_algo, word_len, max_sent, tradeoff, idx)
                 out_file = open(d_name+"/"+c.code.lower()+"_"+reg_algo+"-"+sum_algo+"-"+red_algo,"w")
             else:
                 raise Exception('sum_algo: Invalid algorithm')
@@ -84,22 +97,36 @@ if __name__ == '__main__':
 
     print "\nConfiguring..."
 
-    features = "(P, F5, LEN, LM, VS1, VB, NN, CT, Q)"
+    f = {
+        0:("P",True),   # P
+        1:("F5",True),  # F5
+        2:("LEN",True), # LEN
+        3:("LM",True), # LM
+        4:("VS1",True), # VS1
+        5:("TFIDF",False), # TFIDF
+        6:("VB",True), # VB
+        7:("NN",True), # NN
+        8:("CT",True), # CT
+        9:("Q",True), # Q
+    }
+
     read = False
     human_inspect = False
     store_test = True
 
     ext_algo = 'greedy'
-    reg_algo = 'decisionT'       # rf-R, linear-R, decisionT
-    sum_algo = 'mmr'           # mmr, lead, rel
-    red_algo = 'uniCosRed'      # simpleRed, uniCosRed
+    reg_algo = 'rf-R'             # rf-R, linear-R, decisionT
+    sum_algo = 'mmr'              # mmr, lead, rel
+    red_algo = 'simpleRed'        # simpleRed, uniCosRed
 
     tradeoff = 0.2
     word_len = 250
     max_sent = 200
 
-    evaluate_config(ext_algo, reg_algo, sum_algo, red_algo, tradeoff, word_len, max_sent)
+    evaluate_config(ext_algo, reg_algo, sum_algo, red_algo, tradeoff, word_len, max_sent, f)
 
+    if False:
+        pdb.set_trace()
     exit()
 
     print "\nEvaluate on true feed..."
