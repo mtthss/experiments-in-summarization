@@ -89,7 +89,13 @@ class Corpus:
         print "number of collections in dict: ", len(self.collections)
 
     # export data: X,y = train sentence and score. t = test collections
-    def export_data(self):
+    def export_data(self, f):
+
+        idx = []
+        for x in f.keys():
+            if f[x][1]==True:
+                idx.append(x)
+        idx = sorted(idx)
 
         start = time.time()
         x_list = []
@@ -103,7 +109,7 @@ class Corpus:
             else:
                 for d in c.docs.values():
                     for s in d.sent.values():
-                        x_list.append(s[1])
+                        x_list.append(s[1][idx])
                         y_list.append(s[2])
             count +=1
 
@@ -317,7 +323,7 @@ class Document:
 
         # headline-sentence similarity
         VS1 = 1 - spatial.distance.cosine(self.hl_vsv_1.toarray(), self.father.cv.transform([s]).toarray())
-        #TFIDF = 1 - spatial.distance.cosine(self.hl_tfidf.toarray(), self.father.tv.transform([s]).toarray())
+        TFIDF = 1 - spatial.distance.cosine(self.hl_tfidf.toarray(), self.father.tv.transform([s]).toarray())
 
         # topic description-sentence similarity
         CT = 1 - spatial.distance.cosine(self.father.desc_vsv.toarray(), self.father.cv.transform([s]).toarray())
@@ -335,7 +341,7 @@ class Document:
             print self.father.code, self.id
 
         # active features
-        return (P, F5, LEN, LM, VS1, VB, NN, CT, Q)
+        return np.asarray([P, F5, LEN, LM, VS1, TFIDF, VB, NN, CT, Q])
 
     # score sentence wrt reference summaries (svr)
     def compute_score(self, sentence, method):
