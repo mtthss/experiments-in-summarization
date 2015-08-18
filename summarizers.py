@@ -35,13 +35,13 @@ def multi_lead(collection, num_words, max_sent):
     return most_rel
 
 # summarize a collection according to relevance score
-def rel_summarize(collection, clf, num_words, max_sent):
+def rel_summarize(collection, clf, num_words, max_sent, idx):
 
     start = time.time()
     h = []
     for d in collection.docs.values():
         for s in d.sent.values():
-            rel = clf.predict(np.asarray(list(s[1])))
+            rel = clf.predict(s[1][idx])
             if len(s[0])<350:       # modify simultaneously as line 270 of data_structures.py
                 heappush(h, (-1*rel, s[0]))
     cw = cs = 0
@@ -60,7 +60,7 @@ def rel_summarize(collection, clf, num_words, max_sent):
     return most_rel
 
 # maximum marginal relevance summarization
-def mmr_summarize(collection, clf, ext_algo, red_algo, num_words, max_sent, tradeoff):
+def mmr_summarize(collection, clf, ext_algo, red_algo, num_words, max_sent, tradeoff, idx):
 
     if ext_algo=="greedy":
 
@@ -69,7 +69,7 @@ def mmr_summarize(collection, clf, ext_algo, red_algo, num_words, max_sent, trad
         dict = {}
         for d in collection.docs.values():
             for s in d.sent.values():
-                rel = clf.predict(np.asarray(list(s[1])))
+                rel = clf.predict(s[1][idx])
                 if len(s[0])<350:       # modify simultaneously as line 270 of data_structures.py
                     heappush(h, (-1*tradeoff*rel, s[0]))
                     dict[s[0]]= rel
@@ -81,12 +81,15 @@ def mmr_summarize(collection, clf, ext_algo, red_algo, num_words, max_sent, trad
         first = re.sub('-',' ',re.sub('\s+', ' ', heappop(h)[1])).strip()
         most_rel.append(first)
         cw += len(first.split())
-        while cw<num_words and cs<max_sent:
+        while cw<num_words-10 and cs<max_sent:
             if flag:
                 evaluate_redundancy(h, dict, most_rel, tradeoff, red_algo)
                 heapify(h)
                 flag = False
-            cand = heappop(h)
+            try:
+                cand = heappop(h)
+            except IndexError:
+                break
             add = len(cand[1].split())
             if (cw + add)<num_words:
                 most_rel.append(re.sub('-',' ',re.sub('\s+', ' ', cand[1])).strip())
