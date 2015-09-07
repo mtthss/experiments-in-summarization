@@ -31,10 +31,9 @@ cachedStopWords = stopwords.words("english")
 cachedStopPOStags = ['.', 'X', 'PRT', 'ADP', 'CONJ', 'ADV', 'DET']
 
 pos_tagger = nltk.pos_tag
-LModel = kenlm.LanguageModel('kenlm/bible.klm') # http://victor.chahuneau.fr/notes/2012/07/03/kenlm.html, NEURAL-LM https://github.com/pauldb89/OxLM
+LModel = kenlm.LanguageModel('kenlm/bible.klm')
 sent_detector = nltk.data.load('tokenizers/punkt/english.pickle')
 stemmer = PorterStemmer()
-
 
 # utility function for multiprocessing map
 def initialize_collection(params_bundle):
