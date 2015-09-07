@@ -2,8 +2,9 @@ import re
 import pdb
 import time
 import numpy as np
+#import rnn_language
 
-from functions import simple_red, uni_cos_red
+from functions import simple_red, uni_cos_red, rnn_group_red, cnn_red
 from heapq import heappush, heapify, heappop, nsmallest
 
 
@@ -60,7 +61,7 @@ def rel_summarize(collection, clf, num_words, max_sent, idx):
     return most_rel
 
 # maximum marginal relevance summarization
-def mmr_summarize(collection, clf, ext_algo, red_algo, num_words, max_sent, tradeoff, idx):
+def mmr_summarize(collection, clf, ext_algo, red_algo, num_words, max_sent, tradeoff, idx, w2v=None):
 
     if ext_algo=="greedy":
 
@@ -83,7 +84,7 @@ def mmr_summarize(collection, clf, ext_algo, red_algo, num_words, max_sent, trad
         cw += len(first.split())
         while cw<num_words-10 and cs<max_sent:
             if flag:
-                evaluate_redundancy(h, dict, most_rel, tradeoff, red_algo)
+                evaluate_redundancy(h, dict, most_rel, tradeoff, red_algo, w2v)
                 heapify(h)
                 flag = False
             try:
@@ -105,7 +106,7 @@ def mmr_summarize(collection, clf, ext_algo, red_algo, num_words, max_sent, trad
         raise Exception('Extract Summary: Invalid algorithm')
 
 # update overall score of each sentences according to the given redundancy measure
-def evaluate_redundancy(c, d, summ, tradeoff, red_algo):
+def evaluate_redundancy(c, d, summ, tradeoff, red_algo, w2v=None):
 
     if red_algo=="simpleRed":
         for i in xrange(len(c)):
@@ -121,6 +122,20 @@ def evaluate_redundancy(c, d, summ, tradeoff, red_algo):
     elif red_algo=="uniCosRed":
         for i in xrange(len(c)):
             c[i] = (-1*tradeoff*d[c[i][1]] + (1-tradeoff)*uni_cos_red(c[i][1], summ), c[i][1])
+    elif red_algo=="groupRnnEmbedding":
+        for i in xrange(len(c)):
+            c[i] = (-1*tradeoff*d[c[i][1]] + (1-tradeoff)*rnn_group_red(c[i][1], summ), c[i][1])
+    elif red_algo=="cnn":
+        for i in xrange(len(c)):
+            s = c[i][1]
+            t = summ[-1]
+            k = float(len(summ))
+            rel = -1 * tradeoff * d[s]
+            red = (1-tradeoff) * cnn_red(s, t, w2v)
+            prev_score = c[i][0]
+            old_red_sum = (prev_score-rel)*(k-1)
+            update = (old_red_sum + red)/k
+            c[i] = (rel + update, s)
     else:
         raise Exception('Redundancy Measure: Invalid algorithm')
 
